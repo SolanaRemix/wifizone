@@ -36,6 +36,13 @@ const autopilot     = require('./autopilot');
 const paymentCfg = require('../config/payment.json');
 const PORT       = process.env.PORT || 3000;
 
+// Resolve Stripe credentials (env vars take precedence over config file).
+// On startup, warn clearly when neither source has a value.
+const STRIPE_SECRET_KEY  = process.env.STRIPE_SECRET_KEY  || paymentCfg.stripe.secretKey;
+const STRIPE_WEBHOOK_SEC = process.env.STRIPE_WEBHOOK_SEC || paymentCfg.stripe.webhookSecret;
+if (!STRIPE_SECRET_KEY)  console.warn('[WIFIZONE] WARNING: Stripe secret key not configured (set STRIPE_SECRET_KEY env var).');
+if (!STRIPE_WEBHOOK_SEC) console.warn('[WIFIZONE] WARNING: Stripe webhook secret not configured (set STRIPE_WEBHOOK_SEC env var).');
+
 // ── DB Pool ───────────────────────────────────────────────────────────────────
 const db = mysql.createPool({
   host:     process.env.DB_HOST     || '127.0.0.1',
@@ -51,12 +58,16 @@ const db = mysql.createPool({
 const app    = express();
 const server = http.createServer(app);
 
+// Stripe webhook path constant — used by both body-parser registration
+// and the route definition so they stay in sync if the path ever changes.
+const STRIPE_WEBHOOK_PATH = '/api/payment/stripe/webhook';
+
 // Stripe webhook requires raw (unparsed) bytes for signature verification.
 // This path-scoped middleware must be registered BEFORE the global JSON parser.
-app.use('/api/payment/stripe/webhook', bodyParser.raw({ type: 'application/json' }));
+app.use(STRIPE_WEBHOOK_PATH, bodyParser.raw({ type: 'application/json' }));
 
 app.use(bodyParser.json({
-  type: req => req.path !== '/api/payment/stripe/webhook',
+  type: req => req.path !== STRIPE_WEBHOOK_PATH,
 }));
 app.use(express.static(path.join(__dirname, '..', 'admin-panel')));
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
@@ -237,15 +248,13 @@ app.post('/api/payment/gcash/callback', paymentLimiter, async (req, res) => {
 });
 
 // ── REST: Stripe Webhook ──────────────────────────────────────────────────────
-app.post('/api/payment/stripe/webhook', paymentLimiter, async (req, res) => {
-  const stripeSecretKey  = process.env.STRIPE_SECRET_KEY  || paymentCfg.stripe.secretKey;
-  const stripeWebhookSec = process.env.STRIPE_WEBHOOK_SEC || paymentCfg.stripe.webhookSecret;
-  const stripe = require('stripe')(stripeSecretKey);
+app.post(STRIPE_WEBHOOK_PATH, paymentLimiter, async (req, res) => {
+  const stripe = require('stripe')(STRIPE_SECRET_KEY);
   const sig    = req.headers['stripe-signature'];
 
   let event;
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, stripeWebhookSec);
+    event = stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SEC);
   } catch (err) {
     const safeMsg = String(err.message).replace(/[<>&"]/g, c =>
       ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c])

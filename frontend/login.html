@@ -340,8 +340,9 @@
 
   checkBtn.addEventListener('click', checkStatus);
 
-  // Auto-check on load
-  if (sessionId) checkStatus();
+  // Auto-check on load — delayed by 1.5 s to let the backend finish writing
+  // the session row before we query its status.
+  if (sessionId) setTimeout(checkStatus, 1500);
 })();
 </script>
 </body>
