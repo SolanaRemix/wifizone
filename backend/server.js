@@ -24,6 +24,7 @@ const http       = require('http');
 const WebSocket  = require('ws');
 const mysql      = require('mysql2/promise');
 const path       = require('path');
+const rateLimit  = require('express-rate-limit');
 
 const routerControl = require('./router-control');
 const starlinkMod   = require('./starlink');
@@ -50,6 +51,23 @@ const server = http.createServer(app);
 
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, '..', 'admin-panel')));
+
+// ── Rate limiting ─────────────────────────────────────────────────────────────
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
+});
+
+const paymentLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many payment requests, please try again later.' },
+});
 
 // ── WebSocket ─────────────────────────────────────────────────────────────────
 const wss = new WebSocket.Server({ server });
@@ -84,7 +102,7 @@ wss.on('connection', ws => {
 });
 
 // ── REST: Plans ───────────────────────────────────────────────────────────────
-app.get('/api/plans', async (_req, res) => {
+app.get('/api/plans', apiLimiter, async (_req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM plans ORDER BY duration_minutes');
     res.json(rows);
@@ -94,7 +112,7 @@ app.get('/api/plans', async (_req, res) => {
 });
 
 // ── REST: Start Session ───────────────────────────────────────────────────────
-app.post('/api/session/start', async (req, res) => {
+app.post('/api/session/start', apiLimiter, async (req, res) => {
   const { mac_address, device_name, plan_id } = req.body;
   if (!mac_address || !plan_id) {
     return res.status(400).json({ error: 'mac_address and plan_id required' });
@@ -190,7 +208,7 @@ async function confirmPayment(sessionId, txnId, amount, method) {
 }
 
 // ── REST: GCash Callback ──────────────────────────────────────────────────────
-app.post('/api/payment/gcash/callback', async (req, res) => {
+app.post('/api/payment/gcash/callback', paymentLimiter, async (req, res) => {
   const { session_id, txn_id, amount } = req.body;
   if (!session_id || !txn_id || !amount) {
     return res.status(400).json({ error: 'session_id, txn_id, and amount required' });
@@ -212,14 +230,14 @@ app.post('/api/payment/stripe/webhook', express.raw({ type: 'application/json' }
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, paymentCfg.stripe.webhookSecret);
   } catch (err) {
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+    return res.status(400).send(`Webhook Error: ${err.message.replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]))}`);
   }
 
   if (event.type === 'payment_intent.succeeded') {
     const pi         = event.data.object;
     const sessionId  = parseInt(pi.metadata.session_id, 10);
     const txnId      = pi.id;
-    const amount     = pi.amount_received / 100; // paise → PHP
+    const amount     = pi.amount_received / 100; // centavos → PHP
     try {
       await confirmPayment(sessionId, txnId, amount, 'stripe');
     } catch (err) {
@@ -236,7 +254,7 @@ app.get('/api/telemetry', (_req, res) => {
 });
 
 // ── REST: Stats ───────────────────────────────────────────────────────────────
-app.get('/api/stats', async (_req, res) => {
+app.get('/api/stats', apiLimiter, async (_req, res) => {
   try {
     const [[stats]] = await db.query('SELECT * FROM operator_stats WHERE id = 1');
     res.json(stats || {});

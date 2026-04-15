@@ -11,8 +11,6 @@
  *   - Otherwise restore to full speed.
  */
 
-'use strict';
-
 const routerControl = require('./router-control');
 const starlink      = require('./starlink');
 const cfg           = require('../config/router.json');

@@ -122,19 +122,31 @@
   }
 
   function renderSessions() {
+    sessionTbody.innerHTML = '';
+
     if (sessions.length === 0) {
-      sessionTbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:20px;">No sessions yet.</td></tr>';
+      const tr = document.createElement('tr');
+      const td = document.createElement('td');
+      td.colSpan = 4;
+      td.style.cssText = 'color:var(--muted);text-align:center;padding:20px;';
+      td.textContent = 'No sessions yet.';
+      tr.appendChild(td);
+      sessionTbody.appendChild(tr);
       return;
     }
 
-    sessionTbody.innerHTML = sessions.map((s, i) =>
-      `<tr class="${i === 0 ? 'pulse' : ''}">
-        <td>#${s.id}</td>
-        <td>${escHtml(s.mac)}</td>
-        <td>${escHtml(s.plan)}</td>
-        <td>${escHtml(s.ts)}</td>
-      </tr>`
-    ).join('');
+    sessions.forEach((s, i) => {
+      const tr = document.createElement('tr');
+      if (i === 0) tr.classList.add('pulse');
+
+      [String('#' + s.id), String(s.mac), String(s.plan), String(s.ts)].forEach(text => {
+        const td = document.createElement('td');
+        td.textContent = text;
+        tr.appendChild(td);
+      });
+
+      sessionTbody.appendChild(tr);
+    });
   }
 
   // ── Stats ──────────────────────────────────────────────────────────────────

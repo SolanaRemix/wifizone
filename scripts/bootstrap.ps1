@@ -31,19 +31,15 @@ if ($LASTEXITCODE -ne 0) {
     Write-Warning "Database init failed — ensure MySQL is running and accessible."
 }
 
-# ── 4. Start backend ───────────────────────────────────────────────────────────
-Write-Host "🟢 Starting backend server…" -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$PSScriptRoot\..\backend'; node server.js"
-
-# ── 5. Start Python deployer ───────────────────────────────────────────────────
+# ── 4. Start backend + open dashboard via deployer ────────────────────────────
+Write-Host "🟢 Starting backend + cockpit via deployer.py…" -ForegroundColor Green
 if (Get-Command python -ErrorAction SilentlyContinue) {
-    Write-Host "🐍 Starting Python deployer…" -ForegroundColor Yellow
     Start-Process powershell -ArgumentList "-NoExit", "-Command", "python '$PSScriptRoot\deployer.py'"
+} else {
+    # Fallback: start Node directly if Python is unavailable
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$PSScriptRoot\..\backend'; node server.js"
+    Start-Sleep -Seconds 2
+    Start-Process "http://localhost:3000"
 }
-
-# ── 6. Open admin dashboard ───────────────────────────────────────────────────
-Start-Sleep -Seconds 2
-Write-Host "🌐 Opening operator cockpit…" -ForegroundColor Cyan
-Start-Process "http://localhost:3000"
 
 Write-Host "✅ WIFIZONE ELITE backend + cockpit running." -ForegroundColor Green
