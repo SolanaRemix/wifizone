@@ -17,3 +17,4 @@ config/payment.local.json
 # OS
 .DS_Store
 Thumbs.db
+nohup.out
