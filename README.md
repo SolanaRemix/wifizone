@@ -84,13 +84,14 @@ After selecting a plan, users are redirected here. They enter their payment refe
 
 ```bash
 git clone https://github.com/SolanaRemix/wifizone.git
-cd wifizone/backend
-npm install
+cd wifizone
+npm install --prefix backend
 ```
 
 ### 2. Database
 
 ```bash
+# From the repo root:
 mysql -u root -p < db/schema.sql
 ```
 
@@ -99,6 +100,7 @@ mysql -u root -p < db/schema.sql
 Copy the example configs and fill in your details:
 
 ```bash
+# From the repo root:
 cp config/router.json    config/router.local.json
 cp config/payment.json   config/payment.local.json
 ```
@@ -120,6 +122,10 @@ Edit `config/payment.local.json` or set environment variables:
 |---|---|
 | `STRIPE_SECRET_KEY` | Stripe secret key (`sk_live_...`) |
 | `STRIPE_WEBHOOK_SEC` | Stripe webhook signing secret (`whsec_...`) |
+| `OPERATOR_API_TOKEN` | Bearer token for dashboard/operator API endpoints |
+| `ROUTER_HOST` | MikroTik router IP (overrides `config/router.local.json`) |
+| `ROUTER_USER` | MikroTik API username |
+| `ROUTER_PASSWORD` | MikroTik API password |
 | `DB_HOST` | MySQL host (default: 127.0.0.1) |
 | `DB_USER` | MySQL user (default: root) |
 | `DB_PASSWORD` | MySQL password |
@@ -155,6 +161,7 @@ The script configures:
 ### 5. Start the Backend
 
 ```bash
+# From the repo root:
 cd backend
 node server.js
 ```
@@ -177,9 +184,10 @@ The server starts on `http://0.0.0.0:3000`.
 
 | URL | Description |
 |---|---|
-| `http://YOUR_SERVER:3000/` | Operator dashboard (admin-panel) |
-| `http://YOUR_SERVER:3000/index.html` | Client captive portal landing page |
-| `http://YOUR_SERVER:3000/login.html` | Session activation page |
+| `http://YOUR_SERVER:3000/` | Redirects to operator dashboard |
+| `http://YOUR_SERVER:3000/dashboard.html` | Operator dashboard (admin-panel) |
+| `http://YOUR_SERVER:3000/portal/` | Client captive portal landing page |
+| `http://YOUR_SERVER:3000/portal/login.html` | Session activation page |
 
 ---
 

@@ -4,10 +4,21 @@
 (function () {
   'use strict';
 
-  const WS_URL       = `ws://${location.host}`;
+  // Derive WebSocket scheme from the page protocol so wss:// is used over HTTPS.
+  const wsScheme     = location.protocol === 'https:' ? 'wss' : 'ws';
+  const WS_URL       = `${wsScheme}://${location.host}`;
   const PING_MS      = 15000;
   const RECONNECT_MS = 3000;
   const HOTSPOT_AUTO_REFRESH_MS = 30000;
+
+  // Operator API token — stored in sessionStorage so operators don't have to
+  // re-enter on every page reload within the same session.
+  // Set OPERATOR_API_TOKEN on the server to enable auth.
+  let OPERATOR_TOKEN = sessionStorage.getItem('OPERATOR_TOKEN') || '';
+
+  function getAuthHeaders() {
+    return OPERATOR_TOKEN ? { Authorization: `Bearer ${OPERATOR_TOKEN}` } : {};
+  }
 
   const wsStatus      = document.getElementById('ws-status');
   const revEl         = document.getElementById('revenue-value');
@@ -183,7 +194,12 @@
     hotspotTs.textContent = 'Loading…';
 
     try {
-      const res   = await fetch('/api/hotspot/users');
+      const res   = await fetch('/api/hotspot/users', { headers: getAuthHeaders() });
+      if (res.status === 401) {
+        promptToken();
+        hotspotTs.textContent = 'Authentication required.';
+        return;
+      }
       const users = await res.json();
 
       hotspotCount.textContent  = Array.isArray(users) ? users.length : '—';
@@ -225,11 +241,22 @@
   setInterval(refreshHotspotUsers, HOTSPOT_AUTO_REFRESH_MS);
 
   // ── Init ───────────────────────────────────────────────────────────────────
+  function promptToken() {
+    const tok = window.prompt('Enter OPERATOR_API_TOKEN to access dashboard:');
+    if (tok) {
+      OPERATOR_TOKEN = tok.trim();
+      sessionStorage.setItem('OPERATOR_TOKEN', OPERATOR_TOKEN);
+    }
+  }
+
   connect();
 
-  fetch('/api/stats')
-    .then(r => r.json())
-    .then(renderStats)
+  fetch('/api/stats', { headers: getAuthHeaders() })
+    .then(r => {
+      if (r.status === 401) { promptToken(); return null; }
+      return r.json();
+    })
+    .then(d => { if (d) renderStats(d); })
     .catch(() => {});
 
   // Initial hotspot load

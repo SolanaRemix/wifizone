@@ -228,17 +228,25 @@
 
   function getMac() {
     const params = new URLSearchParams(location.search);
-    return params.get('mac') || 'unknown';
+    const mac = (params.get('mac') || '').trim();
+    const macPattern = /^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/;
+    if (!mac || !macPattern.test(mac)) return null;
+    return mac.toLowerCase();
   }
 
   async function startSession() {
     if (!selectedPlanId) { showError('Please select a plan first.'); return null; }
+    const macAddress = getMac();
+    if (!macAddress) {
+      showError('Missing or invalid device identifier. Please reconnect using the captive portal link.');
+      return null;
+    }
     clearError();
     try {
       const res = await fetch('/api/session/start', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ mac_address: getMac(), plan_id: selectedPlanId }),
+        body:    JSON.stringify({ mac_address: macAddress, plan_id: selectedPlanId }),
       });
       const data = await res.json();
       if (!res.ok) { showError(data.error || 'Failed to start session.'); return null; }

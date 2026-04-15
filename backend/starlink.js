@@ -12,9 +12,15 @@
  *   'threshold'  { reason, value, limit }
  */
 
-const EventEmitter = require('events');
-const snmp         = require('net-snmp');
-const cfg          = require('../config/router.json');
+const EventEmitter   = require('events');
+const snmp           = require('net-snmp');
+const { loadConfig } = require('./config-loader');
+
+const _fileCfg = loadConfig('router');
+const cfg = {
+  ..._fileCfg,
+  host: process.env.ROUTER_HOST || _fileCfg.host,
+};
 
 // ── OIDs (MikroTik RouterOS SNMP) ────────────────────────────────────────────
 // These are standard MikroTik OIDs; adjust if using Starlink SNMP directly.
@@ -117,19 +123,51 @@ class StarlinkMonitor extends EventEmitter {
 
   async _rebootDish() {
     // We reboot the Starlink dish by momentarily toggling the PoE output
-    // on the MikroTik port connected to it, or by calling a RouterOS script.
+    // on the MikroTik port connected to it using a RouterOS script.
     // router-control is required lazily here to avoid a circular dependency:
     // server.js → starlink.js and server.js → router-control.js both load at
     // startup, so a top-level require of router-control inside starlink would
     // create a cycle.  The lazy require resolves safely after all modules load.
-    const routerControl = require('./router-control');
-    // The router-control module exposes setQueueLimits; for dish reboot we
-    // use a direct API call.  Here we simulate it with a log statement since
-    // the actual command depends on the physical setup.
-    console.log('[Starlink] Executing dish reboot via RouterOS API...');
-    // Example: /system/reboot on the Starlink-facing interface PoE port
-    // This requires a custom RouterOS script named "dish-reboot" already
-    // present on the router.
+    const MikroNode      = require('mikronode');
+    const { loadConfig } = require('./config-loader');
+    const rcfg = {
+      ...loadConfig('router'),
+      host:     process.env.ROUTER_HOST     || undefined,
+      user:     process.env.ROUTER_USER     || undefined,
+      password: process.env.ROUTER_PASSWORD || undefined,
+    };
+    const host     = rcfg.host     || cfg.host;
+    const port     = rcfg.port     || cfg.port     || 8728;
+    const user     = rcfg.user     || cfg.user     || 'admin';
+    const password = rcfg.password || cfg.password || '';
+
+    console.log('[Starlink] Issuing dish reboot via RouterOS API /system/script/run...');
+
+    await new Promise((resolve, reject) => {
+      const device = new MikroNode(host, port);
+      device.connect((err, connection) => {
+        if (err) return reject(new Error(`Router connect failed: ${err.message}`));
+        connection.login(user, password, (err2) => {
+          if (err2) {
+            try { connection.close(); } catch (_) {}
+            return reject(new Error(`Router login failed: ${err2.message}`));
+          }
+
+          const chan = connection.openChannel('dish-reboot');
+          chan.on('trap',  e  => { connection.close(); reject(new Error(`Reboot script error: ${e}`)); });
+          chan.on('error', e  => { connection.close(); reject(e); });
+          chan.on('done',  () => { connection.close(); resolve(); });
+
+          // Run a RouterOS script named "dish-reboot" that has been pre-created on
+          // the router.  The script should toggle PoE on the Starlink-facing port,
+          // e.g.:  /interface/ethernet/poe/set [find name=ether1] poe-out=off;
+          //        :delay 5; /interface/ethernet/poe/set [find name=ether1] poe-out=auto-on;
+          chan.write(['/system/script/run', '=name=dish-reboot'], true);
+        });
+      });
+    });
+
+    console.log('[Starlink] Dish reboot command issued successfully.');
   }
 
   _val(varbinds, idx) {

@@ -10,11 +10,22 @@
  *   • syncUsers()                              — pull live hotspot sessions
  *   • setPerUserSpeed(ip, maxLimit)            — apply per-IP queue simple rule
  *
- * Configuration is read from config/router.json.
+ * Configuration is read from config/router.json (or config/router.local.json
+ * when present).  Environment variables ROUTER_HOST, ROUTER_USER,
+ * ROUTER_PASSWORD, and ROUTER_PORT take highest precedence.
  */
 
-const MikroNode = require('mikronode');
-const cfg       = require('../config/router.json');
+const MikroNode    = require('mikronode');
+const { loadConfig } = require('./config-loader');
+
+const _fileCfg = loadConfig('router');
+const cfg = {
+  ..._fileCfg,
+  host:     process.env.ROUTER_HOST     || _fileCfg.host,
+  port:     process.env.ROUTER_PORT     ? parseInt(process.env.ROUTER_PORT, 10) : _fileCfg.port,
+  user:     process.env.ROUTER_USER     || _fileCfg.user,
+  password: process.env.ROUTER_PASSWORD || _fileCfg.password,
+};
 
 /**
  * Return a connected, ready-to-use MikroNode connection.
@@ -28,7 +39,11 @@ function openConnection() {
     device.connect((err, connection) => {
       if (err) return reject(new Error(`MikroTik connect failed: ${err.message}`));
       connection.login(cfg.user, cfg.password, (err2) => {
-        if (err2) return reject(new Error(`MikroTik login failed: ${err2.message}`));
+        if (err2) {
+          // Close the socket to avoid leaking file descriptors on repeated failures.
+          try { connection.close(); } catch (_) { /* ignore close errors */ }
+          return reject(new Error(`MikroTik login failed: ${err2.message}`));
+        }
         resolve(connection);
       });
     });
@@ -67,19 +82,25 @@ function secondsToUptime(seconds) {
 async function addUser(mac, durationSeconds, profile = 'REGULAR') {
   const connection = await openConnection();
   try {
-    const chan = connection.openChannel('add-user');
-
+    // Step 1: Remove any stale entry — fire-and-forget.
+    // "No such item" traps are expected on first activation and must not fail.
+    // Using a dedicated channel isolates the trap handler from the add step.
     await new Promise((resolve, reject) => {
-      chan.on('trap',  reject);
-      chan.on('error', reject);
-      chan.on('done',  resolve);
+      const removeChan = connection.openChannel('add-user-remove');
+      removeChan.on('trap',  () => resolve()); // ignore "not found" traps
+      removeChan.on('error', reject);
+      removeChan.on('done',  resolve);
+      // RouterOS `numbers` accepts item names; users are named by their MAC.
+      removeChan.write(['/ip/hotspot/user/remove', `=numbers=${mac}`], true);
+    });
 
-      // Remove any stale entry first (fire-and-forget; trap is ignored if not found).
-      // RouterOS `numbers` accepts the item name, and we name users by their MAC.
-      chan.write(['/ip/hotspot/user/remove', `=numbers=${mac}`], false);
-
-      // Add the new time-limited entry
-      chan.write([
+    // Step 2: Add the new time-limited entry.
+    await new Promise((resolve, reject) => {
+      const addChan = connection.openChannel('add-user-add');
+      addChan.on('trap',  reject);
+      addChan.on('error', reject);
+      addChan.on('done',  resolve);
+      addChan.write([
         '/ip/hotspot/user/add',
         `=name=${mac}`,
         `=mac-address=${mac}`,
@@ -180,19 +201,24 @@ async function setPerUserSpeed(ip, maxLimit) {
   const queueName = `wifizone-${ip}`;
   const connection = await openConnection();
   try {
-    const chan = connection.openChannel('per-user-speed');
-
+    // Step 1: Remove existing rule for this IP — fire-and-forget.
+    // Trap is resolved (not rejected) because the queue may not exist yet.
     await new Promise((resolve, reject) => {
-      chan.on('trap',  reject);
-      chan.on('error', reject);
-      chan.on('done',  resolve);
-
-      // Remove existing rule for this IP (fire-and-forget; trap ignored if absent).
+      const removeChan = connection.openChannel('per-user-speed-remove');
+      removeChan.on('trap',  () => resolve()); // ignore "not found" traps
+      removeChan.on('error', reject);
+      removeChan.on('done',  resolve);
       // RouterOS `numbers` accepts item names; queues are named wifizone-<ip>.
-      chan.write(['/queue/simple/remove', `=numbers=${queueName}`], false);
+      removeChan.write(['/queue/simple/remove', `=numbers=${queueName}`], true);
+    });
 
-      // Add new rule
-      chan.write([
+    // Step 2: Add new rule.
+    await new Promise((resolve, reject) => {
+      const addChan = connection.openChannel('per-user-speed-add');
+      addChan.on('trap',  reject);
+      addChan.on('error', reject);
+      addChan.on('done',  resolve);
+      addChan.write([
         '/queue/simple/add',
         `=name=${queueName}`,
         `=target=${ip}`,

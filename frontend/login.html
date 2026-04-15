@@ -319,23 +319,34 @@
     }
   }
 
-  // ── Submit reference (records ref for operator lookup — no self-activation) ─
+  // ── Submit reference (POSTs ref to backend so operator can look it up) ──────
   submitBtn.addEventListener('click', async () => {
     const txnRef = document.getElementById('txn-input').value.trim();
     if (!txnRef) { showMsg('Please enter your transaction reference number.', 'error'); return; }
     if (!sessionId) { showMsg('No session ID. Go back and select a plan.', 'error'); return; }
 
-    // Security: Do NOT call the payment webhook/callback endpoints from the
-    // browser. Payment activation is handled server-side when the provider
-    // (GCash/Stripe) posts a verified webhook to the backend. This form
-    // only records the reference number so the operator can manually verify
-    // if needed.
-    showMsg(
-      `Reference noted: ${txnRef}. Your session ID is ${sessionId}. ` +
-      `The operator will verify your ${providerName} payment and activate your session shortly. ` +
-      `Tap "Check Status" to confirm activation.`,
-      'info'
-    );
+    submitBtn.disabled = true;
+    try {
+      const res  = await fetch(`/api/session/${sessionId}/reference`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ reference: txnRef }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showMsg(data.error || 'Failed to submit reference.', 'error');
+      } else {
+        showMsg(
+          data.message ||
+          `Reference submitted. The operator will verify your ${providerName} payment and activate your session.`,
+          'info'
+        );
+      }
+    } catch {
+      showMsg('Network error. Please try again.', 'error');
+    } finally {
+      submitBtn.disabled = false;
+    }
   });
 
   checkBtn.addEventListener('click', checkStatus);

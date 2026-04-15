@@ -31,9 +31,10 @@ const rateLimit  = require('express-rate-limit');
 const mikrotik      = require('./mikrotik');
 const starlinkMod   = require('./starlink');
 const autopilot     = require('./autopilot');
+const { loadConfig } = require('./config-loader');
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const paymentCfg = require('../config/payment.json');
+const paymentCfg = loadConfig('payment');
 const PORT       = process.env.PORT || 3000;
 
 // Resolve Stripe credentials (env vars take precedence over config file).
@@ -42,6 +43,17 @@ const STRIPE_SECRET_KEY  = process.env.STRIPE_SECRET_KEY  || paymentCfg.stripe.s
 const STRIPE_WEBHOOK_SEC = process.env.STRIPE_WEBHOOK_SEC || paymentCfg.stripe.webhookSecret;
 if (!STRIPE_SECRET_KEY)  console.warn('[WIFIZONE] WARNING: Stripe secret key not configured (set STRIPE_SECRET_KEY env var).');
 if (!STRIPE_WEBHOOK_SEC) console.warn('[WIFIZONE] WARNING: Stripe webhook secret not configured (set STRIPE_WEBHOOK_SEC env var).');
+
+// Operator API token guards dashboard-only endpoints.
+// Set OPERATOR_API_TOKEN env var in production.  Omitting it logs a startup
+// warning and leaves those endpoints unprotected (dev-mode convenience only).
+const OPERATOR_API_TOKEN = process.env.OPERATOR_API_TOKEN || '';
+if (!OPERATOR_API_TOKEN) {
+  console.warn('[WIFIZONE] WARNING: OPERATOR_API_TOKEN not set — operator endpoints are unprotected!');
+}
+
+// MAC address regex (colon or hyphen separated, case-insensitive)
+const MAC_REGEX = /^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/;
 
 // ── DB Pool ───────────────────────────────────────────────────────────────────
 const db = mysql.createPool({
@@ -69,8 +81,11 @@ app.use(STRIPE_WEBHOOK_PATH, bodyParser.raw({ type: 'application/json' }));
 app.use(bodyParser.json({
   type: req => req.path !== STRIPE_WEBHOOK_PATH,
 }));
+
+// `/` → operator dashboard; client portal served under `/portal/`
+app.get('/', (_req, res) => res.redirect(302, '/dashboard.html'));
 app.use(express.static(path.join(__dirname, '..', 'admin-panel')));
-app.use(express.static(path.join(__dirname, '..', 'frontend')));
+app.use('/portal', express.static(path.join(__dirname, '..', 'frontend')));
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 const apiLimiter = rateLimit({
@@ -88,6 +103,24 @@ const paymentLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Too many payment requests, please try again later.' },
 });
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+/**
+ * Middleware that gates operator-only endpoints behind a Bearer token.
+ * Set OPERATOR_API_TOKEN env var to enable.  When the var is unset the
+ * middleware passes through (with a startup warning already logged above).
+ */
+function requireOperatorAuth(req, res, next) {
+  if (!OPERATOR_API_TOKEN) return next(); // dev mode — token not configured
+  const authHeader = req.headers.authorization || '';
+  if (!authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  if (authHeader.slice('Bearer '.length) !== OPERATOR_API_TOKEN) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}
 
 // ── WebSocket ─────────────────────────────────────────────────────────────────
 const wss = new WebSocket.Server({ server });
@@ -137,6 +170,10 @@ app.post('/api/session/start', apiLimiter, async (req, res) => {
   if (!mac_address || !plan_id) {
     return res.status(400).json({ error: 'mac_address and plan_id required' });
   }
+  // Validate MAC format and reject placeholder fallbacks such as 'unknown'.
+  if (!MAC_REGEX.test(mac_address)) {
+    return res.status(400).json({ error: 'Invalid MAC address format' });
+  }
 
   try {
     // Upsert user
@@ -182,46 +219,64 @@ app.post('/api/session/start', apiLimiter, async (req, res) => {
 
 // ── Helper: Confirm Payment ───────────────────────────────────────────────────
 async function confirmPayment(sessionId, txnId, amount, method) {
-  // Reject duplicate transaction IDs
-  const [[existing]] = await db.query('SELECT id FROM payments WHERE txn_id = ?', [txnId]);
-  if (existing) throw new Error('Duplicate transaction ID');
+  const connection = await db.getConnection();
+  let plan, user;
 
-  const [[session]] = await db.query('SELECT * FROM sessions WHERE id = ?', [sessionId]);
-  if (!session) throw new Error('Session not found');
-  if (session.status !== 'unpaid') throw new Error('Session already processed');
+  try {
+    await connection.beginTransaction();
 
-  const [[plan]] = await db.query('SELECT * FROM plans WHERE id = ?', [session.plan_id]);
-  if (!plan) throw new Error('Plan not found for session');
+    // Reject duplicate transaction IDs
+    const [[existing]] = await connection.query('SELECT id FROM payments WHERE txn_id = ?', [txnId]);
+    if (existing) throw new Error('Duplicate transaction ID');
 
-  // Calculate session end time
-  const endTime = new Date(Date.now() + plan.duration_minutes * 60 * 1000);
+    const [[session]] = await connection.query('SELECT * FROM sessions WHERE id = ?', [sessionId]);
+    if (!session) throw new Error('Session not found');
+    if (session.status !== 'unpaid') throw new Error('Session already processed');
 
-  await db.query(
-    "UPDATE sessions SET status = 'active', start_time = NOW(), end_time = ? WHERE id = ?",
-    [endTime, sessionId]
-  );
+    [[plan]] = await connection.query('SELECT * FROM plans WHERE id = ?', [session.plan_id]);
+    if (!plan) throw new Error('Plan not found for session');
 
-  await db.query(
-    "INSERT INTO payments (session_id, txn_id, amount, method, status, paid_at) VALUES (?, ?, ?, ?, 'success', NOW())",
-    [sessionId, txnId, amount, method]
-  );
+    [[user]] = await connection.query('SELECT * FROM users WHERE id = ?', [session.user_id]);
+    if (!user) throw new Error('User not found for session');
 
-  // Unlock hotspot user on router via MikroTik captive portal API
-  const [[user]] = await db.query('SELECT * FROM users WHERE id = ?', [session.user_id]);
+    // Calculate session end time
+    const endTime = new Date(Date.now() + plan.duration_minutes * 60 * 1000);
+
+    await connection.query(
+      "UPDATE sessions SET status = 'active', start_time = NOW(), end_time = ? WHERE id = ?",
+      [endTime, sessionId]
+    );
+
+    await connection.query(
+      "INSERT INTO payments (session_id, txn_id, amount, method, status, paid_at) VALUES (?, ?, ?, ?, 'success', NOW())",
+      [sessionId, txnId, amount, method]
+    );
+
+    // Update operator stats — row is always id=1 (seeded by schema.sql)
+    await connection.query(
+      'UPDATE operator_stats SET total_clients = total_clients + 1, total_revenue = total_revenue + ? WHERE id = 1',
+      [amount]
+    );
+
+    // Upsert quota row
+    await connection.query(
+      'INSERT INTO quotas (user_id) VALUES (?) ON DUPLICATE KEY UPDATE used_mb = 0, reset_at = NOW()',
+      [session.user_id]
+    );
+
+    await connection.commit();
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+
+  // ── Side effects after DB commit ──────────────────────────────────────────
+  // MikroTik provisioning runs outside the transaction so a router error
+  // doesn't roll back the payment.  Operators can re-provision manually.
   const durationSeconds = plan.duration_minutes * 60;
   await mikrotik.addUser(user.mac_address, durationSeconds);
-
-  // Update operator stats
-  await db.query(
-    'UPDATE operator_stats SET total_clients = total_clients + 1, total_revenue = total_revenue + ? WHERE id = 1',
-    [amount]
-  );
-
-  // Upsert quota row
-  await db.query(
-    'INSERT INTO quotas (user_id) VALUES (?) ON DUPLICATE KEY UPDATE used_mb = 0, reset_at = NOW()',
-    [session.user_id]
-  );
 
   // Broadcast unlock event
   broadcast({ type: 'SESSION_UNLOCK', session: { id: sessionId, mac: user.mac_address, plan: plan.name } });
@@ -230,7 +285,7 @@ async function confirmPayment(sessionId, txnId, amount, method) {
   const [[stats]] = await db.query('SELECT * FROM operator_stats WHERE id = 1');
   broadcast({ type: 'STATS', stats });
 
-  return { session_id: sessionId, status: 'active', end_time: endTime };
+  return { session_id: sessionId, status: 'active', end_time: new Date(Date.now() + plan.duration_minutes * 60 * 1000) };
 }
 
 // ── REST: GCash Callback ──────────────────────────────────────────────────────
@@ -271,6 +326,8 @@ app.post(STRIPE_WEBHOOK_PATH, paymentLimiter, async (req, res) => {
       await confirmPayment(sessionId, txnId, amount, 'stripe');
     } catch (err) {
       console.error('[Stripe]', err.message);
+      // Return 500 so Stripe knows to retry this event delivery.
+      return res.status(500).json({ error: 'Payment processing failed; will retry.' });
     }
   }
 
@@ -278,12 +335,12 @@ app.post(STRIPE_WEBHOOK_PATH, paymentLimiter, async (req, res) => {
 });
 
 // ── REST: Telemetry ───────────────────────────────────────────────────────────
-app.get('/api/telemetry', (_req, res) => {
+app.get('/api/telemetry', requireOperatorAuth, (_req, res) => {
   res.json(starlinkMod.getSnapshot() || {});
 });
 
 // ── REST: Live hotspot users (real-time sync from MikroTik) ───────────────────
-app.get('/api/hotspot/users', apiLimiter, async (_req, res) => {
+app.get('/api/hotspot/users', requireOperatorAuth, apiLimiter, async (_req, res) => {
   try {
     const users = await mikrotik.syncUsers();
     res.json(users);
@@ -319,8 +376,32 @@ app.get('/api/session/:id/status', apiLimiter, async (req, res) => {
   }
 });
 
+// ── REST: Submit payment reference (client records ref for operator lookup) ───
+app.post('/api/session/:id/reference', apiLimiter, async (req, res) => {
+  const sessionId = parseInt(req.params.id, 10);
+  if (!sessionId || isNaN(sessionId)) {
+    return res.status(400).json({ error: 'Invalid session ID' });
+  }
+  const { reference } = req.body;
+  if (!reference || typeof reference !== 'string' || !reference.trim()) {
+    return res.status(400).json({ error: 'reference is required' });
+  }
+  try {
+    const [[session]] = await db.query('SELECT id, status FROM sessions WHERE id = ?', [sessionId]);
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+    if (session.status === 'active') return res.json({ message: 'Session already active' });
+    await db.query(
+      'UPDATE sessions SET reference_txn = ? WHERE id = ?',
+      [reference.trim().substring(0, 100), sessionId]
+    );
+    res.json({ message: 'Reference recorded. The operator will verify your payment shortly.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── REST: Stats ───────────────────────────────────────────────────────────────
-app.get('/api/stats', apiLimiter, async (_req, res) => {
+app.get('/api/stats', requireOperatorAuth, apiLimiter, async (_req, res) => {
   try {
     const [[stats]] = await db.query('SELECT * FROM operator_stats WHERE id = 1');
     res.json(stats || {});

@@ -2,14 +2,14 @@
 CREATE DATABASE IF NOT EXISTS wifizone_elite;
 USE wifizone_elite;
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     mac_address VARCHAR(17) UNIQUE NOT NULL,
     device_name VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE plans (
+CREATE TABLE IF NOT EXISTS plans (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(50) NOT NULL,
     duration_minutes INT NOT NULL,
@@ -17,18 +17,19 @@ CREATE TABLE plans (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE sessions (
+CREATE TABLE IF NOT EXISTS sessions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     plan_id INT NOT NULL,
     start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     end_time TIMESTAMP,
-    status ENUM('active','expired','unpaid','paid') DEFAULT 'unpaid',
+    status ENUM('active','expired','unpaid') DEFAULT 'unpaid',
+    reference_txn VARCHAR(100),
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (plan_id) REFERENCES plans(id)
 );
 
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     session_id INT NOT NULL,
     txn_id VARCHAR(100) UNIQUE NOT NULL,
@@ -39,7 +40,7 @@ CREATE TABLE payments (
     FOREIGN KEY (session_id) REFERENCES sessions(id)
 );
 
-CREATE TABLE quotas (
+CREATE TABLE IF NOT EXISTS quotas (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     daily_limit_mb INT DEFAULT 2048,
@@ -49,7 +50,7 @@ CREATE TABLE quotas (
     UNIQUE KEY uq_quotas_user (user_id)
 );
 
-CREATE TABLE operator_stats (
+CREATE TABLE IF NOT EXISTS operator_stats (
     id INT AUTO_INCREMENT PRIMARY KEY,
     total_clients INT DEFAULT 0,
     total_revenue DECIMAL(15,2) DEFAULT 0.00,
@@ -72,6 +73,6 @@ SELECT '1 Week', 10080, 300.00 WHERE NOT EXISTS (SELECT 1 FROM plans WHERE name 
 INSERT INTO plans (name, duration_minutes, price_pesos)
 SELECT '1 Month', 43200, 1000.00 WHERE NOT EXISTS (SELECT 1 FROM plans WHERE name = '1 Month');
 
--- Bootstrap operator stats row (idempotent)
-INSERT INTO operator_stats (total_clients, total_revenue)
-SELECT 0, 0.00 WHERE NOT EXISTS (SELECT 1 FROM operator_stats);
+-- Bootstrap operator stats row with explicit id=1 (backend assumes id=1 for updates)
+INSERT INTO operator_stats (id, total_clients, total_revenue)
+SELECT 1, 0, 0.00 WHERE NOT EXISTS (SELECT 1 FROM operator_stats WHERE id = 1);
