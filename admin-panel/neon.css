@@ -37,6 +37,9 @@ header {
   padding: 12px 24px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 header h1 {
@@ -46,12 +49,22 @@ header h1 {
   text-shadow: var(--glow-md) var(--cyan);
 }
 
+.version-tag {
+  font-size: 0.65rem;
+  padding: 2px 7px;
+  border-radius: 12px;
+  background: #0d0d22;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  letter-spacing: 1px;
+}
+
 #ws-status {
   font-size: 0.75rem;
   color: var(--muted);
 }
-#ws-status.connected { color: var(--green); text-shadow: var(--glow-sm) var(--green); }
-#ws-status.error     { color: var(--red);   text-shadow: var(--glow-sm) var(--red);   }
+#ws-status.connected { color: var(--green);  text-shadow: var(--glow-sm) var(--green); }
+#ws-status.error     { color: var(--red);    text-shadow: var(--glow-sm) var(--red);   }
 
 main {
   padding: 24px;
@@ -68,6 +81,10 @@ main {
   padding: 20px;
 }
 
+.card.wide {
+  grid-column: 1 / -1;
+}
+
 .card h2 {
   font-size: 0.7rem;
   letter-spacing: 3px;
@@ -76,7 +93,42 @@ main {
   margin-bottom: 16px;
 }
 
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.card-header h2 { margin-bottom: 0; }
+
+.badge {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2px 10px;
+  font-size: 0.75rem;
+  color: var(--cyan);
+  min-width: 28px;
+  text-align: center;
+}
+
+.ts-line {
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 8px;
+  margin-bottom: 0;
+}
+
 /* ── Gauge ────────────────────────────────────────────────────── */
+.gauges {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 .gauge-wrap {
   display: flex;
   flex-direction: column;
@@ -114,23 +166,54 @@ main {
   text-transform: uppercase;
 }
 
-/* ── Revenue ticker ───────────────────────────────────────────── */
+/* ── Revenue stats ────────────────────────────────────────────── */
 #revenue-value {
   font-size: 2.6rem;
   color: var(--green);
   text-shadow: var(--glow-md) var(--green);
   letter-spacing: 2px;
+  margin-bottom: 12px;
 }
 
-#client-count {
-  font-size: 1.2rem;
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.stat-val {
+  font-size: 1.1rem;
   color: var(--cyan);
   text-shadow: var(--glow-sm) var(--cyan);
 }
 
+/* ── Refresh button ───────────────────────────────────────────── */
+.refresh-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.72rem;
+  padding: 4px 10px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: border-color 0.2s, color 0.2s;
+}
+.refresh-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+.refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
 /* ── Session table ────────────────────────────────────────────── */
 .table-wrap {
   overflow-x: auto;
+  margin-top: 8px;
 }
 
 table {
@@ -147,6 +230,7 @@ thead th {
   border-bottom: 1px solid var(--border);
   letter-spacing: 1px;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 tbody tr {
@@ -159,6 +243,13 @@ tbody tr:hover { background: rgba(0, 255, 245, 0.04); }
 tbody td {
   padding: 8px 10px;
   color: var(--text);
+  white-space: nowrap;
+}
+
+.empty-row {
+  color: var(--muted) !important;
+  text-align: center;
+  padding: 20px !important;
 }
 
 /* ── Neon-pulse flash on session unlock ──────────────────────── */
@@ -176,14 +267,15 @@ tbody td {
   padding: 6px 12px;
   border-radius: 4px;
   display: inline-block;
+  margin-bottom: 14px;
 }
 
 #autopilot-status.normal    { color: var(--green);  border: 1px solid var(--green);  }
 #autopilot-status.throttled { color: var(--yellow); border: 1px solid var(--yellow); }
 
 /* ── Queue bars ───────────────────────────────────────────────── */
-.queue-bar-wrap { margin-top: 8px; }
-.queue-label    { font-size: 0.7rem; color: var(--muted); margin-bottom: 4px; }
+.queue-bar-wrap { margin-top: 0; }
+.queue-label    { font-size: 0.7rem; color: var(--muted); margin-bottom: 4px; letter-spacing: 1px; }
 
 .queue-bar-bg {
   background: var(--border);
@@ -199,7 +291,7 @@ tbody td {
   transition: width 0.6s ease;
 }
 
-.queue-bar-fill.vip     { background: var(--cyan);   box-shadow: var(--glow-sm) var(--cyan);  }
+.queue-bar-fill.vip     { background: var(--cyan);   box-shadow: var(--glow-sm) var(--cyan);   }
 .queue-bar-fill.regular { background: var(--purple);  box-shadow: var(--glow-sm) var(--purple); }
 
 /* ── Scrollbar ────────────────────────────────────────────────── */

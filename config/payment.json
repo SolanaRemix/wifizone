@@ -5,9 +5,9 @@
     "qrCallbackUrl": "http://YOUR_SERVER/api/payment/gcash/callback"
   },
   "stripe": {
-    "publishableKey": "pk_test_YOUR_STRIPE_PUBLISHABLE_KEY",
-    "secretKey": "sk_test_YOUR_STRIPE_SECRET_KEY",
-    "webhookSecret": "whsec_YOUR_WEBHOOK_SECRET",
+    "publishableKey": "",
+    "secretKey": "",
+    "webhookSecret": "",
     "currency": "php"
   },
   "unpaidSessionExpiryMs": 300000,

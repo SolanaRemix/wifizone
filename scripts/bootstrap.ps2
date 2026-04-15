@@ -4,18 +4,16 @@
 
 Write-Host "🚀 Launching WIFIZONE ELITE with autopilot + dish controls..." -ForegroundColor Cyan
 
-# ── 1. Run Python deployer (checks environment, applies router config) ─────────
+# ── 1. Run Python deployer in a separate window (it manages the backend) ──────
 if (Get-Command python -ErrorAction SilentlyContinue) {
-    Write-Host "🐍 Running deployer.py…" -ForegroundColor Yellow
-    python "$PSScriptRoot\deployer.py"
+    Write-Host "🐍 Running deployer.py in a separate window…" -ForegroundColor Yellow
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "python '$PSScriptRoot\deployer.py'"
 } else {
     Write-Warning "Python not found — skipping deployer.py"
 }
 
-# ── 2. Start Node.js backend (SNMP + autopilot modules auto-start) ─────────────
-Write-Host "🟢 Starting backend (autopilot + Starlink modules)…" -ForegroundColor Green
-Set-Location "$PSScriptRoot\..\backend"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$PSScriptRoot\..\backend'; node server.js"
+# ── 2. Backend is started and tailed by deployer.py ───────────────────────────
+Write-Host "🟢 Backend startup is managed by deployer.py (see the new window)…" -ForegroundColor Green
 
 # ── 3. Open admin dashboard ───────────────────────────────────────────────────
 Start-Sleep -Seconds 2

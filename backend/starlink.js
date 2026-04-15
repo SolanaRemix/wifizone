@@ -3,12 +3,12 @@
 /**
  * WIFIZONE ELITE — starlink.js
  * Polls the MikroTik router's SNMP OIDs every 5 seconds to obtain
- * Starlink dish telemetry (latency, jitter, uptime).  If thresholds
+ * Starlink dish telemetry (latency, jitter, CPU load).  If thresholds
  * are exceeded the autopilot is notified and, as a last resort, the
  * dish is rebooted via the router API.
  *
  * Events emitted:
- *   'telemetry'  { latencyMs, jitterMs, uplinkMbps, downlinkMbps, timestamp }
+ *   'telemetry'  { latencyMs, jitterMs, cpuLoad, timestamp }
  *   'threshold'  { reason, value, limit }
  */
 

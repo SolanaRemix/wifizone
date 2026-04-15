@@ -12,6 +12,7 @@
  *   GET  /api/telemetry               — latest SNMP telemetry snapshot
  *   GET  /api/stats                   — operator stats (clients + revenue)
  *   GET  /api/hotspot/users           — live active sessions from MikroTik
+ *   GET  /api/session/:id/status      — current status of a session (for client polling)
  *
  * WebSocket events broadcast to admin-panel:
  *   { type: 'SESSION_UNLOCK', session }
@@ -27,7 +28,6 @@ const mysql      = require('mysql2/promise');
 const path       = require('path');
 const rateLimit  = require('express-rate-limit');
 
-const routerControl = require('./router-control');
 const mikrotik      = require('./mikrotik');
 const starlinkMod   = require('./starlink');
 const autopilot     = require('./autopilot');
@@ -51,8 +51,15 @@ const db = mysql.createPool({
 const app    = express();
 const server = http.createServer(app);
 
-app.use(bodyParser.json());
+// Stripe webhook requires raw (unparsed) bytes for signature verification.
+// This path-scoped middleware must be registered BEFORE the global JSON parser.
+app.use('/api/payment/stripe/webhook', bodyParser.raw({ type: 'application/json' }));
+
+app.use(bodyParser.json({
+  type: req => req.path !== '/api/payment/stripe/webhook',
+}));
 app.use(express.static(path.join(__dirname, '..', 'admin-panel')));
+app.use(express.static(path.join(__dirname, '..', 'frontend')));
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 const apiLimiter = rateLimit({
@@ -128,9 +135,9 @@ app.post('/api/session/start', apiLimiter, async (req, res) => {
     );
     const [[user]] = await db.query('SELECT id FROM users WHERE mac_address = ?', [mac_address]);
 
-    // Check for existing active session for this MAC
+    // Check for existing active session for this MAC (not yet expired)
     const [[existingSession]] = await db.query(
-      "SELECT id FROM sessions WHERE user_id = ? AND status = 'active'",
+      "SELECT id FROM sessions WHERE user_id = ? AND status = 'active' AND (end_time IS NULL OR end_time > NOW())",
       [user.id]
     );
     if (existingSession) {
@@ -146,10 +153,14 @@ app.post('/api/session/start', apiLimiter, async (req, res) => {
 
     // Auto-expire unpaid session after configured timeout
     setTimeout(async () => {
-      await db.query(
-        "UPDATE sessions SET status = 'expired' WHERE id = ? AND status = 'unpaid'",
-        [sessionId]
-      );
+      try {
+        await db.query(
+          "UPDATE sessions SET status = 'expired' WHERE id = ? AND status = 'unpaid'",
+          [sessionId]
+        );
+      } catch (err) {
+        console.error(`[Session] Failed to auto-expire unpaid session ${sessionId}:`, err.message);
+      }
     }, paymentCfg.unpaidSessionExpiryMs);
 
     res.json({ session_id: sessionId, user_id: user.id });
@@ -169,12 +180,13 @@ async function confirmPayment(sessionId, txnId, amount, method) {
   if (session.status !== 'unpaid') throw new Error('Session already processed');
 
   const [[plan]] = await db.query('SELECT * FROM plans WHERE id = ?', [session.plan_id]);
+  if (!plan) throw new Error('Plan not found for session');
 
   // Calculate session end time
   const endTime = new Date(Date.now() + plan.duration_minutes * 60 * 1000);
 
   await db.query(
-    "UPDATE sessions SET status = 'paid', start_time = NOW(), end_time = ? WHERE id = ?",
+    "UPDATE sessions SET status = 'active', start_time = NOW(), end_time = ? WHERE id = ?",
     [endTime, sessionId]
   );
 
@@ -225,13 +237,15 @@ app.post('/api/payment/gcash/callback', paymentLimiter, async (req, res) => {
 });
 
 // ── REST: Stripe Webhook ──────────────────────────────────────────────────────
-app.post('/api/payment/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  const stripe    = require('stripe')(paymentCfg.stripe.secretKey);
-  const sig       = req.headers['stripe-signature'];
+app.post('/api/payment/stripe/webhook', paymentLimiter, async (req, res) => {
+  const stripeSecretKey  = process.env.STRIPE_SECRET_KEY  || paymentCfg.stripe.secretKey;
+  const stripeWebhookSec = process.env.STRIPE_WEBHOOK_SEC || paymentCfg.stripe.webhookSecret;
+  const stripe = require('stripe')(stripeSecretKey);
+  const sig    = req.headers['stripe-signature'];
 
   let event;
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, paymentCfg.stripe.webhookSecret);
+    event = stripe.webhooks.constructEvent(req.body, sig, stripeWebhookSec);
   } catch (err) {
     const safeMsg = String(err.message).replace(/[<>&"]/g, c =>
       ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c])
@@ -266,6 +280,33 @@ app.get('/api/hotspot/users', apiLimiter, async (_req, res) => {
     res.json(users);
   } catch (err) {
     res.status(502).json({ error: `MikroTik sync failed: ${err.message}` });
+  }
+});
+
+// ── REST: Session status (client polls this to check activation) ──────────────
+app.get('/api/session/:id/status', apiLimiter, async (req, res) => {
+  const sessionId = parseInt(req.params.id, 10);
+  if (!sessionId || isNaN(sessionId)) {
+    return res.status(400).json({ error: 'Invalid session ID' });
+  }
+  try {
+    const [[row]] = await db.query(
+      `SELECT s.id, s.status, s.start_time, s.end_time, p.name AS plan_name
+       FROM sessions s
+       JOIN plans p ON p.id = s.plan_id
+       WHERE s.id = ?`,
+      [sessionId]
+    );
+    if (!row) return res.status(404).json({ error: 'Session not found' });
+    res.json({
+      id:         row.id,
+      status:     row.status,
+      plan:       row.plan_name,
+      start_time: row.start_time,
+      end_time:   row.end_time,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

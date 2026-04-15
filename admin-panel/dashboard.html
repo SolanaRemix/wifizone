@@ -9,16 +9,22 @@
 <body>
 
 <header>
-  <h1>⚡ WIFIZONE ELITE</h1>
-  <span id="ws-status">● CONNECTING</span>
+  <div style="display:flex;align-items:center;gap:14px;">
+    <h1>⚡ WIFIZONE ELITE</h1>
+    <span class="version-tag">v3</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <span id="clock" style="font-size:0.75rem;color:var(--muted);"></span>
+    <span id="ws-status">● CONNECTING</span>
+  </div>
 </header>
 
 <main>
 
-  <!-- Starlink Telemetry -->
+  <!-- ── Starlink Telemetry ── -->
   <div class="card">
-    <h2>Starlink Telemetry</h2>
-    <div style="display:flex;gap:24px;justify-content:center;flex-wrap:wrap;">
+    <h2>📡 Starlink Telemetry</h2>
+    <div class="gauges">
       <div class="gauge-wrap">
         <div id="gauge-latency" class="gauge-ring ok">
           <span class="gauge-value" id="val-latency">—</span>
@@ -35,31 +41,32 @@
         <div id="gauge-cpu" class="gauge-ring ok">
           <span class="gauge-value" id="val-cpu">—</span>
         </div>
-        <span class="gauge-label">CPU %</span>
+        <span class="gauge-label">Router CPU %</span>
       </div>
     </div>
-    <p style="margin-top:12px;font-size:0.7rem;color:var(--muted);text-align:center;" id="telemetry-ts">—</p>
+    <p class="ts-line" id="telemetry-ts">—</p>
   </div>
 
-  <!-- Revenue + Clients -->
+  <!-- ── Revenue + Clients ── -->
   <div class="card">
-    <h2>Total Revenue</h2>
+    <h2>💰 Revenue</h2>
     <div id="revenue-value">₱0.00</div>
-    <p style="margin-top:8px;font-size:0.8rem;color:var(--muted);">Total clients served:</p>
-    <div id="client-count">0</div>
+    <div class="stat-row">
+      <span class="stat-label">Total clients served</span>
+      <span id="client-count" class="stat-val">0</span>
+    </div>
   </div>
 
-  <!-- Autopilot Status -->
+  <!-- ── Autopilot Status ── -->
   <div class="card">
-    <h2>Autopilot</h2>
+    <h2>🤖 Autopilot</h2>
     <span id="autopilot-status" class="normal">● NORMAL SPEED</span>
 
-    <div class="queue-bar-wrap" style="margin-top:16px;">
+    <div class="queue-bar-wrap">
       <div class="queue-label">VIP Queue</div>
       <div class="queue-bar-bg">
         <div class="queue-bar-fill vip" id="bar-vip" style="width:100%;"></div>
       </div>
-
       <div class="queue-label">Regular Queue</div>
       <div class="queue-bar-bg">
         <div class="queue-bar-fill regular" id="bar-regular" style="width:100%;"></div>
@@ -67,21 +74,53 @@
     </div>
   </div>
 
-  <!-- Active Sessions -->
-  <div class="card" style="grid-column: 1 / -1;">
-    <h2>Active Sessions</h2>
+  <!-- ── Active Sessions (from DB via WebSocket) ── -->
+  <div class="card wide">
+    <div class="card-header">
+      <h2>🔓 Session Unlocks</h2>
+      <span class="badge" id="session-count">0</span>
+    </div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>Session ID</th>
+            <th>Session</th>
             <th>MAC Address</th>
             <th>Plan</th>
             <th>Unlocked At</th>
           </tr>
         </thead>
         <tbody id="session-tbody">
-          <tr><td colspan="4" style="color:var(--muted);text-align:center;padding:20px;">No sessions yet.</td></tr>
+          <tr><td colspan="4" class="empty-row">No sessions yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Live Hotspot Users (from MikroTik API) ── -->
+  <div class="card wide">
+    <div class="card-header">
+      <h2>📶 Live Hotspot Users</h2>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="badge" id="hotspot-count">0</span>
+        <button class="refresh-btn" id="refresh-hotspot" title="Refresh">↻ Refresh</button>
+      </div>
+    </div>
+    <p id="hotspot-last-updated" class="ts-line">Not loaded yet.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>MAC Address</th>
+            <th>IP Address</th>
+            <th>Uptime</th>
+            <th>↓ Bytes In</th>
+            <th>↑ Bytes Out</th>
+            <th>Idle</th>
+          </tr>
+        </thead>
+        <tbody id="hotspot-tbody">
+          <tr><td colspan="6" class="empty-row">Click Refresh to load live users.</td></tr>
         </tbody>
       </table>
     </div>

@@ -38,12 +38,23 @@ add name=hotspot1 interface=bridge1 profile=REGULAR address-pool=dhcp_pool
 add name=VIP     quota-limit=2048M
 add name=REGULAR quota-limit=1024M
 
-# ── STEP 5: Queue tree (global bandwidth shaping) ─────────────────────────────
+# ── STEP 5: Firewall mangle — mark packets for queue tree ─────────────────────
+# WiFi Zone OS adds client IPs to these address-lists via the MikroTik API
+# when issuing a VIP vs. Regular session (setPerUserSpeed).
+/ip firewall address-list
+add list=wz-vip     address=0.0.0.0/32 comment="placeholder — managed by WiFi Zone OS"
+add list=wz-regular address=0.0.0.0/32 comment="placeholder — managed by WiFi Zone OS"
+
+/ip firewall mangle
+add chain=forward src-address-list=wz-vip     action=mark-packet new-packet-mark=vip     passthrough=no comment=wifizone-vip
+add chain=forward src-address-list=wz-regular action=mark-packet new-packet-mark=regular passthrough=no comment=wifizone-regular
+
+# ── STEP 6: Queue tree (global bandwidth shaping) ─────────────────────────────
 /queue tree
 add name="VIP-Queue"     parent=global packet-mark=vip     limit-at=20M max-limit=20M
 add name="REGULAR-Queue" parent=global packet-mark=regular limit-at=5M  max-limit=5M
 
-# ── STEP 6: Per-user queue simple (set by WiFi Zone OS via API) ───────────────
+# ── STEP 7: Per-user queue simple (set by WiFi Zone OS via API) ───────────────
 # These are managed dynamically by backend/mikrotik.js → setPerUserSpeed().
 # Example manual entry (replace IP and rate as needed):
 #
@@ -52,10 +63,10 @@ add name="REGULAR-Queue" parent=global packet-mark=regular limit-at=5M  max-limi
 # VIP example:
 # /queue simple add name=wifizone-192.168.88.11 target=192.168.88.11 max-limit=10M/10M comment=wifizone-auto
 
-# ── STEP 7: NAT masquerade (internet sharing) ─────────────────────────────────
+# ── STEP 8: NAT masquerade (internet sharing) ─────────────────────────────────
 /ip firewall nat add chain=srcnat out-interface=ether1 action=masquerade
 
-# ── STEP 8: Scheduler + auto-balance script ───────────────────────────────────
+# ── STEP 9: Scheduler + auto-balance script ───────────────────────────────────
 /system scheduler
 add name="quota-reset" interval=1d  on-event="/ip hotspot user set [find comment=wifizone-auto] bytes-in=0 bytes-out=0"
 add name="autopilot"   interval=5m  on-event="/system script run auto-balance"

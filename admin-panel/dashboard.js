@@ -7,22 +7,31 @@
   const WS_URL       = `ws://${location.host}`;
   const PING_MS      = 15000;
   const RECONNECT_MS = 3000;
+  const HOTSPOT_AUTO_REFRESH_MS = 30000;
 
-  const wsStatus     = document.getElementById('ws-status');
-  const revEl        = document.getElementById('revenue-value');
-  const clientEl     = document.getElementById('client-count');
-  const sessionTbody = document.getElementById('session-tbody');
-  const apStatus     = document.getElementById('autopilot-status');
-  const barVip       = document.getElementById('bar-vip');
-  const barRegular   = document.getElementById('bar-regular');
+  const wsStatus      = document.getElementById('ws-status');
+  const revEl         = document.getElementById('revenue-value');
+  const clientEl      = document.getElementById('client-count');
+  const sessionTbody  = document.getElementById('session-tbody');
+  const sessionCount  = document.getElementById('session-count');
+  const apStatus      = document.getElementById('autopilot-status');
+  const barVip        = document.getElementById('bar-vip');
+  const barRegular    = document.getElementById('bar-regular');
 
-  const gaugeLatency = document.getElementById('gauge-latency');
-  const gaugeJitter  = document.getElementById('gauge-jitter');
-  const gaugeCpu     = document.getElementById('gauge-cpu');
-  const valLatency   = document.getElementById('val-latency');
-  const valJitter    = document.getElementById('val-jitter');
-  const valCpu       = document.getElementById('val-cpu');
-  const telemetryTs  = document.getElementById('telemetry-ts');
+  const gaugeLatency  = document.getElementById('gauge-latency');
+  const gaugeJitter   = document.getElementById('gauge-jitter');
+  const gaugeCpu      = document.getElementById('gauge-cpu');
+  const valLatency    = document.getElementById('val-latency');
+  const valJitter     = document.getElementById('val-jitter');
+  const valCpu        = document.getElementById('val-cpu');
+  const telemetryTs   = document.getElementById('telemetry-ts');
+
+  const hotspotTbody  = document.getElementById('hotspot-tbody');
+  const hotspotCount  = document.getElementById('hotspot-count');
+  const hotspotTs     = document.getElementById('hotspot-last-updated');
+  const refreshBtn    = document.getElementById('refresh-hotspot');
+
+  const clockEl       = document.getElementById('clock');
 
   let ws;
   let pingTimer;
@@ -30,6 +39,13 @@
 
   // Thresholds (mirrors config/router.json values)
   const T = { latencyMs: 150, jitterMs: 30, cpuLoad: 80 };
+
+  // ── Clock ──────────────────────────────────────────────────────────────────
+  function tickClock() {
+    if (clockEl) clockEl.textContent = new Date().toLocaleTimeString();
+  }
+  tickClock();
+  setInterval(tickClock, 1000);
 
   // ── WebSocket ──────────────────────────────────────────────────────────────
   function connect() {
@@ -66,10 +82,10 @@
   // ── Message handler ────────────────────────────────────────────────────────
   function handleMessage(msg) {
     switch (msg.type) {
-      case 'TELEMETRY':     renderTelemetry(msg.data);  break;
-      case 'SESSION_UNLOCK': onUnlock(msg.session);     break;
-      case 'STATS':         renderStats(msg.stats);     break;
-      case 'pong':          /* heartbeat ack */         break;
+      case 'TELEMETRY':      renderTelemetry(msg.data);  break;
+      case 'SESSION_UNLOCK': onUnlock(msg.session);      break;
+      case 'STATS':          renderStats(msg.stats);     break;
+      case 'pong':           /* heartbeat ack */         break;
     }
   }
 
@@ -80,13 +96,14 @@
     valLatency.textContent  = data.latencyMs  ?? '—';
     valJitter.textContent   = data.jitterMs   ?? '—';
     valCpu.textContent      = data.cpuLoad    ?? '—';
-    telemetryTs.textContent = data.timestamp  ? new Date(data.timestamp).toLocaleTimeString() : '—';
+    telemetryTs.textContent = data.timestamp
+      ? `Last update: ${new Date(data.timestamp).toLocaleTimeString()}`
+      : '—';
 
     setGaugeState(gaugeLatency, data.latencyMs, T.latencyMs);
     setGaugeState(gaugeJitter,  data.jitterMs,  T.jitterMs);
     setGaugeState(gaugeCpu,     data.cpuLoad,   T.cpuLoad);
 
-    // Autopilot indicator
     const throttled =
       data.latencyMs > T.latencyMs ||
       data.jitterMs  > T.jitterMs  ||
@@ -95,7 +112,6 @@
     apStatus.textContent = throttled ? '⚡ THROTTLING ACTIVE' : '● NORMAL SPEED';
     apStatus.className   = throttled ? 'throttled' : 'normal';
 
-    // Queue bars — 100 % = normal, 75 % = throttled
     barVip.style.width     = throttled ? '75%' : '100%';
     barRegular.style.width = throttled ? '80%' : '100%';
   }
@@ -111,24 +127,24 @@
   // ── Session unlock ─────────────────────────────────────────────────────────
   function onUnlock(session) {
     sessions.unshift({
-      id:  session.id,
-      mac: session.mac,
+      id:   session.id,
+      mac:  session.mac,
       plan: session.plan,
-      ts:  new Date().toLocaleTimeString(),
+      ts:   new Date().toLocaleTimeString(),
     });
-    // Keep last 50 only
     if (sessions.length > 50) sessions.length = 50;
     renderSessions();
   }
 
   function renderSessions() {
-    sessionTbody.innerHTML = '';
+    sessionCount.textContent = sessions.length;
+    sessionTbody.innerHTML   = '';
 
     if (sessions.length === 0) {
       const tr = document.createElement('tr');
       const td = document.createElement('td');
-      td.colSpan = 4;
-      td.style.cssText = 'color:var(--muted);text-align:center;padding:20px;';
+      td.colSpan   = 4;
+      td.className = 'empty-row';
       td.textContent = 'No sessions yet.';
       tr.appendChild(td);
       sessionTbody.appendChild(tr);
@@ -138,13 +154,11 @@
     sessions.forEach((s, i) => {
       const tr = document.createElement('tr');
       if (i === 0) tr.classList.add('pulse');
-
       [String('#' + s.id), String(s.mac), String(s.plan), String(s.ts)].forEach(text => {
         const td = document.createElement('td');
         td.textContent = text;
         tr.appendChild(td);
       });
-
       sessionTbody.appendChild(tr);
     });
   }
@@ -156,15 +170,68 @@
     clientEl.textContent = stats.total_clients ?? 0;
   }
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
-  // (textContent assignments used in renderSessions are inherently XSS-safe)
+  // ── Live hotspot users ─────────────────────────────────────────────────────
+  function fmtBytes(n) {
+    if (n >= 1073741824) return (n / 1073741824).toFixed(1) + ' GB';
+    if (n >= 1048576)    return (n / 1048576).toFixed(1) + ' MB';
+    if (n >= 1024)       return (n / 1024).toFixed(1) + ' KB';
+    return n + ' B';
+  }
+
+  async function refreshHotspotUsers() {
+    refreshBtn.disabled  = true;
+    hotspotTs.textContent = 'Loading…';
+
+    try {
+      const res   = await fetch('/api/hotspot/users');
+      const users = await res.json();
+
+      hotspotCount.textContent  = Array.isArray(users) ? users.length : '—';
+      hotspotTs.textContent     = `Last synced: ${new Date().toLocaleTimeString()} · ${Array.isArray(users) ? users.length : 0} user(s)`;
+      hotspotTbody.innerHTML    = '';
+
+      if (!Array.isArray(users) || users.length === 0) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan   = 6;
+        td.className = 'empty-row';
+        td.textContent = 'No active hotspot users.';
+        tr.appendChild(td);
+        hotspotTbody.appendChild(tr);
+        return;
+      }
+
+      users.forEach(u => {
+        const tr = document.createElement('tr');
+        [u.mac, u.ip, u.uptime, fmtBytes(u.bytesIn), fmtBytes(u.bytesOut), u.idleTime]
+          .forEach(text => {
+            const td = document.createElement('td');
+            td.textContent = text || '—';
+            tr.appendChild(td);
+          });
+        hotspotTbody.appendChild(tr);
+      });
+    } catch (err) {
+      hotspotTs.textContent  = `Error: ${err.message}`;
+      hotspotTbody.innerHTML = `<tr><td colspan="6" class="empty-row" style="color:var(--red);">Failed to load hotspot users.</td></tr>`;
+    } finally {
+      refreshBtn.disabled = false;
+    }
+  }
+
+  refreshBtn.addEventListener('click', refreshHotspotUsers);
+
+  // Auto-refresh hotspot users every 30 s
+  setInterval(refreshHotspotUsers, HOTSPOT_AUTO_REFRESH_MS);
 
   // ── Init ───────────────────────────────────────────────────────────────────
   connect();
 
-  // Fetch initial stats on load
   fetch('/api/stats')
     .then(r => r.json())
     .then(renderStats)
     .catch(() => {});
+
+  // Initial hotspot load
+  refreshHotspotUsers();
 })();

@@ -45,7 +45,8 @@ CREATE TABLE quotas (
     daily_limit_mb INT DEFAULT 2048,
     used_mb INT DEFAULT 0,
     reset_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    UNIQUE KEY uq_quotas_user (user_id)
 );
 
 CREATE TABLE operator_stats (
@@ -55,13 +56,22 @@ CREATE TABLE operator_stats (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- Seed default plans
-INSERT INTO plans (name, duration_minutes, price_pesos) VALUES
-('1 Hour',   60,    10.00),
-('12 Hours', 720,   50.00),
-('24 Hours', 1440,  80.00),
-('1 Week',   10080, 300.00),
-('1 Month',  43200, 1000.00);
+-- Seed default plans (idempotent — skip existing rows)
+INSERT INTO plans (name, duration_minutes, price_pesos)
+SELECT '1 Hour', 60, 10.00 WHERE NOT EXISTS (SELECT 1 FROM plans WHERE name = '1 Hour');
 
--- Bootstrap operator stats row
-INSERT INTO operator_stats (total_clients, total_revenue) VALUES (0, 0.00);
+INSERT INTO plans (name, duration_minutes, price_pesos)
+SELECT '12 Hours', 720, 50.00 WHERE NOT EXISTS (SELECT 1 FROM plans WHERE name = '12 Hours');
+
+INSERT INTO plans (name, duration_minutes, price_pesos)
+SELECT '24 Hours', 1440, 80.00 WHERE NOT EXISTS (SELECT 1 FROM plans WHERE name = '24 Hours');
+
+INSERT INTO plans (name, duration_minutes, price_pesos)
+SELECT '1 Week', 10080, 300.00 WHERE NOT EXISTS (SELECT 1 FROM plans WHERE name = '1 Week');
+
+INSERT INTO plans (name, duration_minutes, price_pesos)
+SELECT '1 Month', 43200, 1000.00 WHERE NOT EXISTS (SELECT 1 FROM plans WHERE name = '1 Month');
+
+-- Bootstrap operator stats row (idempotent)
+INSERT INTO operator_stats (total_clients, total_revenue)
+SELECT 0, 0.00 WHERE NOT EXISTS (SELECT 1 FROM operator_stats);
