@@ -11,6 +11,7 @@
  *   POST /api/payment/stripe/webhook  — Stripe payment webhook
  *   GET  /api/telemetry               — latest SNMP telemetry snapshot
  *   GET  /api/stats                   — operator stats (clients + revenue)
+ *   GET  /api/hotspot/users           — live active sessions from MikroTik
  *
  * WebSocket events broadcast to admin-panel:
  *   { type: 'SESSION_UNLOCK', session }
@@ -27,6 +28,7 @@ const path       = require('path');
 const rateLimit  = require('express-rate-limit');
 
 const routerControl = require('./router-control');
+const mikrotik      = require('./mikrotik');
 const starlinkMod   = require('./starlink');
 const autopilot     = require('./autopilot');
 
@@ -181,9 +183,9 @@ async function confirmPayment(sessionId, txnId, amount, method) {
     [sessionId, txnId, amount, method]
   );
 
-  // Unlock hotspot user on router
+  // Unlock hotspot user on router via MikroTik captive portal API
   const [[user]] = await db.query('SELECT * FROM users WHERE id = ?', [session.user_id]);
-  await routerControl.unlockUser(user.mac_address, plan.duration_minutes);
+  await mikrotik.addUser(user.mac_address, plan.duration_minutes * 60);
 
   // Update operator stats
   await db.query(
@@ -254,6 +256,16 @@ app.post('/api/payment/stripe/webhook', express.raw({ type: 'application/json' }
 // ── REST: Telemetry ───────────────────────────────────────────────────────────
 app.get('/api/telemetry', (_req, res) => {
   res.json(starlinkMod.getSnapshot() || {});
+});
+
+// ── REST: Live hotspot users (real-time sync from MikroTik) ───────────────────
+app.get('/api/hotspot/users', apiLimiter, async (_req, res) => {
+  try {
+    const users = await mikrotik.syncUsers();
+    res.json(users);
+  } catch (err) {
+    res.status(502).json({ error: `MikroTik sync failed: ${err.message}` });
+  }
 });
 
 // ── REST: Stats ───────────────────────────────────────────────────────────────
