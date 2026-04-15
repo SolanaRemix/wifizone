@@ -124,22 +124,15 @@ class StarlinkMonitor extends EventEmitter {
   async _rebootDish() {
     // We reboot the Starlink dish by momentarily toggling the PoE output
     // on the MikroTik port connected to it using a RouterOS script.
-    // router-control is required lazily here to avoid a circular dependency:
+    // MikroNode is required lazily here to avoid a circular dependency:
     // server.js → starlink.js and server.js → router-control.js both load at
-    // startup, so a top-level require of router-control inside starlink would
-    // create a cycle.  The lazy require resolves safely after all modules load.
-    const MikroNode      = require('mikronode');
-    const { loadConfig } = require('./config-loader');
-    const rcfg = {
-      ...loadConfig('router'),
-      host:     process.env.ROUTER_HOST     || undefined,
-      user:     process.env.ROUTER_USER     || undefined,
-      password: process.env.ROUTER_PASSWORD || undefined,
-    };
-    const host     = rcfg.host     || cfg.host;
-    const port     = rcfg.port     || cfg.port     || 8728;
-    const user     = rcfg.user     || cfg.user     || 'admin';
-    const password = rcfg.password || cfg.password || '';
+    // startup, so a top-level require inside starlink would create a cycle.
+    // The lazy require resolves safely after all modules load.
+    const MikroNode = require('mikronode');
+    const host     = cfg.host     || '192.168.88.1';
+    const port     = cfg.port     || 8728;
+    const user     = cfg.user     || 'admin';
+    const password = cfg.password || '';
 
     console.log('[Starlink] Issuing dish reboot via RouterOS API /system/script/run...');
 

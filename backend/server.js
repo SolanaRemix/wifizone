@@ -352,7 +352,7 @@ app.get('/api/hotspot/users', requireOperatorAuth, apiLimiter, async (_req, res)
 // ── REST: Session status (client polls this to check activation) ──────────────
 app.get('/api/session/:id/status', apiLimiter, async (req, res) => {
   const sessionId = parseInt(req.params.id, 10);
-  if (!sessionId || isNaN(sessionId)) {
+  if (isNaN(sessionId) || sessionId <= 0) {
     return res.status(400).json({ error: 'Invalid session ID' });
   }
   try {
@@ -379,7 +379,7 @@ app.get('/api/session/:id/status', apiLimiter, async (req, res) => {
 // ── REST: Submit payment reference (client records ref for operator lookup) ───
 app.post('/api/session/:id/reference', apiLimiter, async (req, res) => {
   const sessionId = parseInt(req.params.id, 10);
-  if (!sessionId || isNaN(sessionId)) {
+  if (isNaN(sessionId) || sessionId <= 0) {
     return res.status(400).json({ error: 'Invalid session ID' });
   }
   const { reference } = req.body;

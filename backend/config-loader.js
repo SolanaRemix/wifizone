@@ -38,8 +38,9 @@ function loadConfig(name) {
     console.log(`[Config] Loaded ${name}.local.json overrides`);
   }
 
-  // Shallow-merge: local overrides base at every top-level key.
-  // For nested objects (e.g. cfg.stripe), both objects are merged one level deep.
+  // One-level-deep merge: for each top-level key, if both base and local hold a
+  // plain object the two objects are merged (local values win within that key).
+  // Primitive values and arrays are replaced wholesale by the local value.
   const merged = { ...base };
   for (const [key, val] of Object.entries(local)) {
     if (val !== null && typeof val === 'object' && !Array.isArray(val)
