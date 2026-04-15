@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WIFIZONE ELITE — Activate Session</title>
+  <style>
+    :root {
+      --bg:     #0a0a1a;
+      --surface:#12122a;
+      --border: #1e1e4a;
+      --cyan:   #00fff5;
+      --green:  #00ff88;
+      --yellow: #ffe600;
+      --red:    #ff2d55;
+      --text:   #e0e0ff;
+      --muted:  #6060a0;
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Courier New', Courier, monospace;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 36px 40px;
+      width: 100%;
+      max-width: 440px;
+    }
+    h1 {
+      color: var(--cyan);
+      font-size: 1.4rem;
+      letter-spacing: 4px;
+      text-shadow: 0 0 12px var(--cyan);
+      margin-bottom: 24px;
+      text-align: center;
+    }
+    label {
+      display: block;
+      font-size: 0.7rem;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+    input[type="text"]:focus { border-color: var(--cyan); }
+
+    .method-label {
+      font-size: 0.7rem;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .method-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      margin-bottom: 20px;
+    }
+    .method-badge.gcash  { background: #005bff33; color: #599cff; border: 1px solid #005bff; }
+    .method-badge.stripe { background: #635bff33; color: #a39cff; border: 1px solid #635bff; }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: var(--radius);
+      background: var(--cyan);
+      color: #000;
+      font-family: inherit;
+      font-size: 0.95rem;
+      letter-spacing: 2px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: box-shadow 0.3s;
+      text-transform: uppercase;
+    }
+    .btn:hover { box-shadow: 0 0 18px var(--cyan); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    #msg {
+      margin-top: 16px;
+      font-size: 0.8rem;
+      text-align: center;
+      min-height: 20px;
+    }
+    #msg.ok    { color: var(--green); }
+    #msg.error { color: var(--red);   }
+  </style>
+</head>
+<body>
+
+<div class="box">
+  <h1>⚡ ACTIVATE</h1>
+
+  <p id="method-label" class="method-label">Payment Method</p>
+  <span id="method-badge" class="method-badge">—</span>
+
+  <label for="txn-input">Transaction / Reference ID</label>
+  <input type="text" id="txn-input" placeholder="e.g. GCash ref or Stripe PI id" autocomplete="off" />
+
+  <label for="amount-input">Amount Paid (₱)</label>
+  <input type="text" id="amount-input" placeholder="e.g. 80" autocomplete="off" />
+
+  <button class="btn" id="activate-btn">Activate Internet</button>
+
+  <p id="msg"></p>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const params    = new URLSearchParams(location.search);
+  const sessionId = parseInt(params.get('session'), 10);
+  const method    = params.get('method') || 'gcash';
+
+  const badge = document.getElementById('method-badge');
+  badge.textContent = method.toUpperCase();
+  badge.className   = `method-badge ${method}`;
+
+  const btn    = document.getElementById('activate-btn');
+  const msgEl  = document.getElementById('msg');
+
+  function showMsg(text, isError) {
+    msgEl.textContent = text;
+    msgEl.className   = isError ? 'error' : 'ok';
+  }
+
+  btn.addEventListener('click', async () => {
+    const txnId = document.getElementById('txn-input').value.trim();
+    const amount = parseFloat(document.getElementById('amount-input').value.trim());
+
+    if (!txnId)           { showMsg('Please enter your transaction ID.',  true); return; }
+    if (isNaN(amount) || amount <= 0) { showMsg('Please enter a valid amount.', true); return; }
+    if (!sessionId)       { showMsg('Invalid session. Go back and select a plan.', true); return; }
+
+    btn.disabled = true;
+    showMsg('Verifying…', false);
+
+    try {
+      const endpoint = method === 'stripe'
+        ? '/api/payment/stripe/webhook'
+        : '/api/payment/gcash/callback';
+
+      const body = method === 'stripe'
+        ? JSON.stringify({ type: 'payment_intent.succeeded', data: { object: { id: txnId, amount_received: amount * 100, metadata: { session_id: sessionId } } } })
+        : JSON.stringify({ session_id: sessionId, txn_id: txnId, amount });
+
+      const res  = await fetch(endpoint, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showMsg(data.error || 'Activation failed.', true);
+        btn.disabled = false;
+      } else {
+        showMsg('✅ Internet activated! Enjoy browsing.', false);
+      }
+    } catch (err) {
+      showMsg('Network error. Please try again.', true);
+      btn.disabled = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>

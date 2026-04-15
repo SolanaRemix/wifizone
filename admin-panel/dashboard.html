@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WIFIZONE ELITE — Operator Cockpit</title>
+  <link rel="stylesheet" href="neon.css" />
+</head>
+<body>
+
+<header>
+  <h1>⚡ WIFIZONE ELITE</h1>
+  <span id="ws-status">● CONNECTING</span>
+</header>
+
+<main>
+
+  <!-- Starlink Telemetry -->
+  <div class="card">
+    <h2>Starlink Telemetry</h2>
+    <div style="display:flex;gap:24px;justify-content:center;flex-wrap:wrap;">
+      <div class="gauge-wrap">
+        <div id="gauge-latency" class="gauge-ring ok">
+          <span class="gauge-value" id="val-latency">—</span>
+        </div>
+        <span class="gauge-label">Latency ms</span>
+      </div>
+      <div class="gauge-wrap">
+        <div id="gauge-jitter" class="gauge-ring ok">
+          <span class="gauge-value" id="val-jitter">—</span>
+        </div>
+        <span class="gauge-label">Jitter ms</span>
+      </div>
+      <div class="gauge-wrap">
+        <div id="gauge-cpu" class="gauge-ring ok">
+          <span class="gauge-value" id="val-cpu">—</span>
+        </div>
+        <span class="gauge-label">CPU %</span>
+      </div>
+    </div>
+    <p style="margin-top:12px;font-size:0.7rem;color:var(--muted);text-align:center;" id="telemetry-ts">—</p>
+  </div>
+
+  <!-- Revenue + Clients -->
+  <div class="card">
+    <h2>Revenue Today</h2>
+    <div id="revenue-value">₱0.00</div>
+    <p style="margin-top:8px;font-size:0.8rem;color:var(--muted);">Total clients served:</p>
+    <div id="client-count">0</div>
+  </div>
+
+  <!-- Autopilot Status -->
+  <div class="card">
+    <h2>Autopilot</h2>
+    <span id="autopilot-status" class="normal">● NORMAL SPEED</span>
+
+    <div class="queue-bar-wrap" style="margin-top:16px;">
+      <div class="queue-label">VIP Queue</div>
+      <div class="queue-bar-bg">
+        <div class="queue-bar-fill vip" id="bar-vip" style="width:100%;"></div>
+      </div>
+
+      <div class="queue-label">Regular Queue</div>
+      <div class="queue-bar-bg">
+        <div class="queue-bar-fill regular" id="bar-regular" style="width:100%;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Active Sessions -->
+  <div class="card" style="grid-column: 1 / -1;">
+    <h2>Active Sessions</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Session ID</th>
+            <th>MAC Address</th>
+            <th>Plan</th>
+            <th>Unlocked At</th>
+          </tr>
+        </thead>
+        <tbody id="session-tbody">
+          <tr><td colspan="4" style="color:var(--muted);text-align:center;padding:20px;">No sessions yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="dashboard.js"></script>
+</body>
+</html>

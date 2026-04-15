@@ -1,0 +1,30 @@
+{
+  "host": "192.168.88.1",
+  "port": 8728,
+  "user": "admin",
+  "password": "",
+  "hotspotInterface": "bridge1",
+  "snmp": {
+    "community": "public",
+    "port": 161,
+    "version": 2
+  },
+  "queues": {
+    "vip": {
+      "name": "VIP-Queue",
+      "normalMax": "20M",
+      "throttledMax": "15M"
+    },
+    "regular": {
+      "name": "REGULAR-Queue",
+      "normalMax": "5M",
+      "throttledMax": "4M"
+    }
+  },
+  "thresholds": {
+    "cpuLoadPercent": 80,
+    "latencyMs": 150,
+    "jitterMs": 30
+  },
+  "autopilotIntervalMs": 30000
+}

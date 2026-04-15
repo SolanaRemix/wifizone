@@ -1,0 +1,209 @@
+/* WIFIZONE ELITE — neon.css
+   Cyberpunk neon-glow theme for the operator dashboard. */
+
+:root {
+  --bg:       #0a0a1a;
+  --surface:  #12122a;
+  --border:   #1e1e4a;
+  --cyan:     #00fff5;
+  --green:    #00ff88;
+  --yellow:   #ffe600;
+  --red:      #ff2d55;
+  --purple:   #c33aff;
+  --text:     #e0e0ff;
+  --muted:    #6060a0;
+  --radius:   8px;
+  --glow-sm:  0 0 6px;
+  --glow-md:  0 0 14px;
+  --glow-lg:  0 0 30px;
+}
+
+*,
+*::before,
+*::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Courier New', Courier, monospace;
+  min-height: 100vh;
+}
+
+/* ── Layout ───────────────────────────────────────────────────── */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+header h1 {
+  font-size: 1.4rem;
+  letter-spacing: 4px;
+  color: var(--cyan);
+  text-shadow: var(--glow-md) var(--cyan);
+}
+
+#ws-status {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+#ws-status.connected { color: var(--green); text-shadow: var(--glow-sm) var(--green); }
+#ws-status.error     { color: var(--red);   text-shadow: var(--glow-sm) var(--red);   }
+
+main {
+  padding: 24px;
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+/* ── Cards ────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.card h2 {
+  font-size: 0.7rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+/* ── Gauge ────────────────────────────────────────────────────── */
+.gauge-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.gauge-ring {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 6px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: border-color 0.4s, box-shadow 0.4s;
+}
+
+.gauge-ring.ok     { border-color: var(--green);  box-shadow: var(--glow-lg) var(--green);  }
+.gauge-ring.warn   { border-color: var(--yellow); box-shadow: var(--glow-lg) var(--yellow); }
+.gauge-ring.danger { border-color: var(--red);    box-shadow: var(--glow-lg) var(--red);    }
+
+.gauge-value {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: var(--cyan);
+  text-shadow: var(--glow-sm) var(--cyan);
+}
+
+.gauge-label {
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+/* ── Revenue ticker ───────────────────────────────────────────── */
+#revenue-value {
+  font-size: 2.6rem;
+  color: var(--green);
+  text-shadow: var(--glow-md) var(--green);
+  letter-spacing: 2px;
+}
+
+#client-count {
+  font-size: 1.2rem;
+  color: var(--cyan);
+  text-shadow: var(--glow-sm) var(--cyan);
+}
+
+/* ── Session table ────────────────────────────────────────────── */
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+thead th {
+  text-align: left;
+  padding: 6px 10px;
+  color: var(--purple);
+  text-shadow: var(--glow-sm) var(--purple);
+  border-bottom: 1px solid var(--border);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.2s;
+}
+
+tbody tr:hover { background: rgba(0, 255, 245, 0.04); }
+
+tbody td {
+  padding: 8px 10px;
+  color: var(--text);
+}
+
+/* ── Neon-pulse flash on session unlock ──────────────────────── */
+@keyframes neon-pulse {
+  0%   { background: rgba(0, 255, 136, 0.18); }
+  50%  { background: rgba(0, 255, 136, 0.40); }
+  100% { background: transparent; }
+}
+
+.pulse { animation: neon-pulse 0.8s ease-out; }
+
+/* ── Autopilot status ─────────────────────────────────────────── */
+#autopilot-status {
+  font-size: 0.9rem;
+  padding: 6px 12px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+#autopilot-status.normal    { color: var(--green);  border: 1px solid var(--green);  }
+#autopilot-status.throttled { color: var(--yellow); border: 1px solid var(--yellow); }
+
+/* ── Queue bars ───────────────────────────────────────────────── */
+.queue-bar-wrap { margin-top: 8px; }
+.queue-label    { font-size: 0.7rem; color: var(--muted); margin-bottom: 4px; }
+
+.queue-bar-bg {
+  background: var(--border);
+  border-radius: 3px;
+  height: 10px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.queue-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+.queue-bar-fill.vip     { background: var(--cyan);   box-shadow: var(--glow-sm) var(--cyan);  }
+.queue-bar-fill.regular { background: var(--purple);  box-shadow: var(--glow-sm) var(--purple); }
+
+/* ── Scrollbar ────────────────────────────────────────────────── */
+::-webkit-scrollbar              { width: 6px; height: 6px; }
+::-webkit-scrollbar-track        { background: var(--bg); }
+::-webkit-scrollbar-thumb        { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover  { background: var(--muted); }

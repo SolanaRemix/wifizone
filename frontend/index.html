@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WIFIZONE ELITE — Get Connected</title>
+  <style>
+    :root {
+      --bg:     #0a0a1a;
+      --cyan:   #00fff5;
+      --green:  #00ff88;
+      --text:   #e0e0ff;
+      --muted:  #6060a0;
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Courier New', Courier, monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    h1 {
+      color: var(--cyan);
+      font-size: 2rem;
+      letter-spacing: 4px;
+      text-shadow: 0 0 14px var(--cyan);
+      margin-bottom: 8px;
+    }
+    p.tagline {
+      color: var(--muted);
+      font-size: 0.85rem;
+      letter-spacing: 2px;
+      margin-bottom: 40px;
+    }
+    .plans {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      justify-content: center;
+      max-width: 700px;
+    }
+    .plan-card {
+      background: #12122a;
+      border: 1px solid #1e1e4a;
+      border-radius: var(--radius);
+      padding: 20px 28px;
+      cursor: pointer;
+      transition: border-color 0.3s, box-shadow 0.3s;
+      text-align: center;
+      min-width: 130px;
+    }
+    .plan-card:hover, .plan-card.selected {
+      border-color: var(--cyan);
+      box-shadow: 0 0 18px var(--cyan);
+    }
+    .plan-name  { font-size: 1rem; color: var(--text); letter-spacing: 1px; }
+    .plan-price { font-size: 1.5rem; color: var(--green); text-shadow: 0 0 8px var(--green); margin-top: 6px; }
+    .cta {
+      margin-top: 32px;
+      display: flex;
+      gap: 16px;
+    }
+    .btn {
+      padding: 12px 32px;
+      border-radius: var(--radius);
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.9rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      transition: box-shadow 0.3s;
+    }
+    .btn-gcash  { background: #005bff; color: #fff; }
+    .btn-gcash:hover  { box-shadow: 0 0 18px #005bff; }
+    .btn-stripe { background: #635bff; color: #fff; }
+    .btn-stripe:hover { box-shadow: 0 0 18px #635bff; }
+    a.login-link {
+      margin-top: 24px;
+      color: var(--muted);
+      font-size: 0.75rem;
+      text-decoration: none;
+      letter-spacing: 1px;
+    }
+    a.login-link:hover { color: var(--cyan); }
+  </style>
+</head>
+<body>
+
+<h1>⚡ WIFIZONE</h1>
+<p class="tagline">FAST · RELIABLE · AFFORDABLE</p>
+
+<div class="plans" id="plans-container">
+  <p style="color:var(--muted);">Loading plans…</p>
+</div>
+
+<div class="cta">
+  <button class="btn btn-gcash"  id="btn-gcash">Pay via GCash</button>
+  <button class="btn btn-stripe" id="btn-stripe">Pay via Card</button>
+</div>
+
+<a href="login.html" class="login-link">Already have a voucher? Activate →</a>
+
+<script>
+(function () {
+  'use strict';
+
+  let selectedPlanId = null;
+
+  // Load plans
+  fetch('/api/plans')
+    .then(r => r.json())
+    .then(plans => {
+      const container = document.getElementById('plans-container');
+      container.innerHTML = '';
+      plans.forEach(plan => {
+        const card = document.createElement('div');
+        card.className = 'plan-card';
+        card.dataset.planId = plan.id;
+        card.innerHTML = `<div class="plan-name">${escHtml(plan.name)}</div>
+                          <div class="plan-price">₱${parseFloat(plan.price_pesos).toFixed(2)}</div>`;
+        card.addEventListener('click', () => {
+          document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          selectedPlanId = plan.id;
+        });
+        container.appendChild(card);
+      });
+    })
+    .catch(() => {
+      document.getElementById('plans-container').innerHTML =
+        '<p style="color:#ff2d55;">Unable to load plans. Is the server running?</p>';
+    });
+
+  function getMac() {
+    // In a real hotspot the router injects the MAC via the login URL parameter.
+    const params = new URLSearchParams(location.search);
+    return params.get('mac') || 'unknown';
+  }
+
+  async function startSession() {
+    if (!selectedPlanId) { alert('Please select a plan first.'); return null; }
+    const res = await fetch('/api/session/start', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ mac_address: getMac(), plan_id: selectedPlanId }),
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Failed to start session'); return null; }
+    return data.session_id;
+  }
+
+  document.getElementById('btn-gcash').addEventListener('click', async () => {
+    const sessionId = await startSession();
+    if (!sessionId) return;
+    window.location.href = `login.html?session=${sessionId}&method=gcash`;
+  });
+
+  document.getElementById('btn-stripe').addEventListener('click', async () => {
+    const sessionId = await startSession();
+    if (!sessionId) return;
+    window.location.href = `login.html?session=${sessionId}&method=stripe`;
+  });
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+})();
+</script>
+</body>
+</html>

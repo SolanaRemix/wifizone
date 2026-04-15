@@ -1,0 +1,18 @@
+{
+  "name": "wifizone-elite-backend",
+  "version": "1.0.0",
+  "description": "WIFIZONE ELITE — full-stack enterprise WiFi business automation backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "express": "^4.18.2",
+    "mikronode-ng": "^1.4.0",
+    "mysql2": "^3.6.5",
+    "net-snmp": "^3.11.2",
+    "stripe": "^14.14.0",
+    "ws": "^8.16.0"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "gcash": {
+    "merchantId": "YOUR_GCASH_MERCHANT_ID",
+    "apiKey": "YOUR_GCASH_API_KEY",
+    "qrCallbackUrl": "http://YOUR_SERVER/api/payment/gcash/callback"
+  },
+  "stripe": {
+    "publishableKey": "pk_test_YOUR_STRIPE_PUBLISHABLE_KEY",
+    "secretKey": "sk_test_YOUR_STRIPE_SECRET_KEY",
+    "webhookSecret": "whsec_YOUR_WEBHOOK_SECRET",
+    "currency": "php"
+  },
+  "unpaidSessionExpiryMs": 300000,
+  "reseller": {
+    "marginPerVoucher": 5
+  }
+}
