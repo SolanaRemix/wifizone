@@ -74,7 +74,8 @@ async function addUser(mac, durationSeconds, profile = 'REGULAR') {
       chan.on('error', reject);
       chan.on('done',  resolve);
 
-      // Remove any stale entry first (ignore trap if not found)
+      // Remove any stale entry first (fire-and-forget; trap is ignored if not found).
+      // RouterOS `numbers` accepts the item name, and we name users by their MAC.
       chan.write(['/ip/hotspot/user/remove', `=numbers=${mac}`], false);
 
       // Add the new time-limited entry
@@ -111,6 +112,7 @@ async function removeUser(mac) {
       chan.on('error', reject);
       chan.on('done',  resolve);
 
+      // RouterOS `numbers` accepts item names; user names are set to the MAC address.
       chan.write(['/ip/hotspot/user/remove', `=numbers=${mac}`], true);
     });
 
@@ -185,7 +187,8 @@ async function setPerUserSpeed(ip, maxLimit) {
       chan.on('error', reject);
       chan.on('done',  resolve);
 
-      // Remove existing rule for this IP (ignore trap if absent)
+      // Remove existing rule for this IP (fire-and-forget; trap ignored if absent).
+      // RouterOS `numbers` accepts item names; queues are named wifizone-<ip>.
       chan.write(['/queue/simple/remove', `=numbers=${queueName}`], false);
 
       // Add new rule

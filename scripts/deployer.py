@@ -70,7 +70,13 @@ except Exception as e:
 # ── 4. Print RSC reminder ─────────────────────────────────────────────────────
 step("Router config reminder")
 if RSC.exists():
-    warn(f"Apply MikroTik config manually:\n     /import {RSC}")
+    warn(
+        f"Apply MikroTik config manually:\n"
+        f"  1. Upload the file to the router first:\n"
+        f"       sftp admin@{router_cfg.get('host','192.168.88.1')}  then  put {RSC} router-config.rsc\n"
+        f"  2. In WinBox / RouterOS terminal run:\n"
+        f"       /import router-config.rsc"
+    )
 else:
     warn("router-config.rsc not found")
 

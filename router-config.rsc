@@ -57,7 +57,7 @@ add name="REGULAR-Queue" parent=global packet-mark=regular limit-at=5M  max-limi
 
 # ── STEP 8: Scheduler + auto-balance script ───────────────────────────────────
 /system scheduler
-add name="quota-reset" interval=1d  on-event="/tool user-manager reset-counters"
+add name="quota-reset" interval=1d  on-event="/ip hotspot user set [find comment=wifizone-auto] bytes-in=0 bytes-out=0"
 add name="autopilot"   interval=5m  on-event="/system script run auto-balance"
 
 /system script

@@ -185,7 +185,8 @@ async function confirmPayment(sessionId, txnId, amount, method) {
 
   // Unlock hotspot user on router via MikroTik captive portal API
   const [[user]] = await db.query('SELECT * FROM users WHERE id = ?', [session.user_id]);
-  await mikrotik.addUser(user.mac_address, plan.duration_minutes * 60);
+  const durationSeconds = plan.duration_minutes * 60;
+  await mikrotik.addUser(user.mac_address, durationSeconds);
 
   // Update operator stats
   await db.query(
