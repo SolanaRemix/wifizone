@@ -230,7 +230,10 @@ app.post('/api/payment/stripe/webhook', express.raw({ type: 'application/json' }
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, paymentCfg.stripe.webhookSecret);
   } catch (err) {
-    return res.status(400).send(`Webhook Error: ${err.message.replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]))}`);
+    const safeMsg = String(err.message).replace(/[<>&"]/g, c =>
+      ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c])
+    );
+    return res.status(400).send(`Webhook Error: ${safeMsg}`);
   }
 
   if (event.type === 'payment_intent.succeeded') {

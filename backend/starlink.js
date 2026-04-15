@@ -118,6 +118,10 @@ class StarlinkMonitor extends EventEmitter {
   async _rebootDish() {
     // We reboot the Starlink dish by momentarily toggling the PoE output
     // on the MikroTik port connected to it, or by calling a RouterOS script.
+    // router-control is required lazily here to avoid a circular dependency:
+    // server.js → starlink.js and server.js → router-control.js both load at
+    // startup, so a top-level require of router-control inside starlink would
+    // create a cycle.  The lazy require resolves safely after all modules load.
     const routerControl = require('./router-control');
     // The router-control module exposes setQueueLimits; for dish reboot we
     // use a direct API call.  Here we simulate it with a log statement since
