@@ -101,35 +101,85 @@ async function removeUser(macAddress) {
 }
 
 /**
+ * Run a single RouterOS command on its own channel and collect returned rows.
+ * @param {*} connection
+ * @param {string[]} sentence
+ * @returns {Promise<object[]>}
+ */
+function runRouterCommand(connection, sentence) {
+  return new Promise((resolve, reject) => {
+    const channel = connection.openChannel('queue');
+    const rows = [];
+    let settled = false;
+
+    const finishReject = err => {
+      if (settled) return;
+      settled = true;
+      channel.close();
+      reject(err);
+    };
+
+    const finishResolve = () => {
+      if (settled) return;
+      settled = true;
+      channel.close();
+      resolve(rows);
+    };
+
+    channel.on('data', data => {
+      rows.push(data);
+    });
+    channel.on('trap', finishReject);
+    channel.on('error', finishReject);
+    channel.on('done', finishResolve);
+
+    channel.write(sentence);
+  });
+}
+
+/**
+ * Resolve a queue tree item's RouterOS `.id` by its configured name.
+ * @param {*} connection
+ * @param {string} queueName
+ * @returns {Promise<string>}
+ */
+async function getQueueTreeIdByName(connection, queueName) {
+  const rows = await runRouterCommand(connection, [
+    '/queue/tree/print',
+    `?name=${queueName}`,
+  ]);
+
+  const match = rows.find(row => row && row['.id'] && row.name === queueName);
+  if (!match) {
+    throw new Error(`Queue tree item not found: ${queueName}`);
+  }
+
+  return match['.id'];
+}
+
+/**
  * Adjust queue max-limits on the router.
  * @param {{ vipMax: string, regularMax: string }} limits  e.g. { vipMax: '15M', regularMax: '4M' }
  */
 async function setQueueLimits({ vipMax, regularMax }) {
   await withConnection(async connection => {
-    return new Promise((resolve, reject) => {
-      const channel = connection.openChannel('queue');
+    const vipName     = cfg.queues.vip.name;
+    const regularName = cfg.queues.regular.name;
 
-      channel.on('trap',  reject);
-      channel.on('error', reject);
-      channel.on('done',  resolve);
+    const vipId = await getQueueTreeIdByName(connection, vipName);
+    const regularId = await getQueueTreeIdByName(connection, regularName);
 
-      const vipName     = cfg.queues.vip.name;
-      const regularName = cfg.queues.regular.name;
+    await runRouterCommand(connection, [
+      '/queue/tree/set',
+      `=.id=${vipId}`,
+      `=max-limit=${vipMax}`,
+    ]);
 
-      channel.write([
-        '/queue/tree/set',
-        `=.id=[find where name=${vipName}]`,
-        `=max-limit=${vipMax}`,
-      ]);
-
-      channel.write([
-        '/queue/tree/set',
-        `=.id=[find where name=${regularName}]`,
-        `=max-limit=${regularMax}`,
-      ]);
-
-      channel.close();
-    });
+    await runRouterCommand(connection, [
+      '/queue/tree/set',
+      `=.id=${regularId}`,
+      `=max-limit=${regularMax}`,
+    ]);
   });
 
   console.log(`[RouterControl] Queues → VIP:${vipMax}  REGULAR:${regularMax}`);
