@@ -21,12 +21,12 @@ Write-Host "🗄️  Initialising database…" -ForegroundColor Yellow
 $dbPassword = Read-Host -Prompt "MySQL root password (leave blank for none)"
 $sqlFile    = "$PSScriptRoot\..\db\schema.sql"
 
-if ($dbPassword -eq "") {
-    mysql -u root --execute "source $sqlFile"
-} else {
-    mysql -u root -p$dbPassword --execute "source $sqlFile"
+$mysqlArgs = @("-u", "root")
+if ($dbPassword -ne "") {
+    $mysqlArgs += "-p$dbPassword"
 }
 
+Get-Content -Raw -Path $sqlFile | mysql @mysqlArgs
 if ($LASTEXITCODE -ne 0) {
     Write-Warning "Database init failed — ensure MySQL is running and accessible."
 }
