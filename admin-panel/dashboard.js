@@ -62,7 +62,7 @@
   fetch('/api/config/thresholds', { headers: getAuthHeaders() })
     .then(r => r.ok ? r.json() : null)
     .then(data => { if (data) T = data; })
-    .catch(() => {});
+    .catch(err => console.warn('[Dashboard] Failed to load thresholds:', err));
 
   // ── Clock ──────────────────────────────────────────────────────────────────
   function tickClock() {
