@@ -19,7 +19,10 @@ const { loadConfig } = require('./config-loader');
 const _fileCfg = loadConfig('router');
 const cfg = {
   ..._fileCfg,
-  host: process.env.ROUTER_HOST || _fileCfg.host,
+  host:     process.env.ROUTER_HOST     || _fileCfg.host,
+  port:     process.env.ROUTER_PORT     ? parseInt(process.env.ROUTER_PORT, 10) : _fileCfg.port,
+  user:     process.env.ROUTER_USER     || _fileCfg.user,
+  password: process.env.ROUTER_PASSWORD || _fileCfg.password,
 };
 
 // ── OIDs (MikroTik RouterOS SNMP) ────────────────────────────────────────────

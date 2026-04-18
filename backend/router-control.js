@@ -49,8 +49,9 @@ async function unlockUser(macAddress, durationMinutes) {
     return new Promise((resolve, reject) => {
       const channel = connection.openChannel('unlock');
 
+      channel.on('trap',  reject);
       channel.on('error', reject);
-      channel.on('done', resolve);
+      channel.on('done',  resolve);
 
       // Remove stale entry if present (ignore errors)
       channel.write([
@@ -83,8 +84,9 @@ async function removeUser(macAddress) {
     return new Promise((resolve, reject) => {
       const channel = connection.openChannel('remove');
 
+      channel.on('trap',  reject);
       channel.on('error', reject);
-      channel.on('done', resolve);
+      channel.on('done',  resolve);
 
       channel.write([
         '/ip/hotspot/user/remove',
@@ -107,8 +109,9 @@ async function setQueueLimits({ vipMax, regularMax }) {
     return new Promise((resolve, reject) => {
       const channel = connection.openChannel('queue');
 
+      channel.on('trap',  reject);
       channel.on('error', reject);
-      channel.on('done', resolve);
+      channel.on('done',  resolve);
 
       const vipName     = cfg.queues.vip.name;
       const regularName = cfg.queues.regular.name;

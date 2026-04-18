@@ -13,7 +13,8 @@
 
 const routerControl = require('./router-control');
 const starlink      = require('./starlink');
-const cfg           = require('../config/router.json');
+const { loadConfig } = require('./config-loader');
+const cfg           = loadConfig('router');
 
 let _timer     = null;
 let _throttled = false;

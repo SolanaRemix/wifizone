@@ -79,7 +79,10 @@ const STRIPE_WEBHOOK_PATH = '/api/payment/stripe/webhook';
 app.use(STRIPE_WEBHOOK_PATH, bodyParser.raw({ type: 'application/json' }));
 
 app.use(bodyParser.json({
-  type: req => req.path !== STRIPE_WEBHOOK_PATH,
+  // Exclude the Stripe webhook path (needs raw bytes for sig verification).
+  // Only parse requests that declare application/json to avoid unexpected 400s
+  // on form-data or other content types.
+  type: req => req.path !== STRIPE_WEBHOOK_PATH && Boolean(req.is('application/json')),
 }));
 
 // `/` → operator dashboard; client portal served under `/portal/`
@@ -123,7 +126,26 @@ function requireOperatorAuth(req, res, next) {
 }
 
 // ── WebSocket ─────────────────────────────────────────────────────────────────
-const wss = new WebSocket.Server({ server });
+// When OPERATOR_API_TOKEN is configured, gate WS upgrades by requiring
+// the token as a `?token=` query parameter on the upgrade request URL.
+// Clients that don't provide a valid token receive a 401 close.
+const wss = new WebSocket.Server({
+  server,
+  verifyClient: (info, cb) => {
+    if (!OPERATOR_API_TOKEN) { cb(true); return; }
+    try {
+      const url   = new URL(info.req.url, `http://${info.req.headers.host}`);
+      const token = url.searchParams.get('token') || '';
+      if (token === OPERATOR_API_TOKEN) {
+        cb(true);
+      } else {
+        cb(false, 401, 'Unauthorized');
+      }
+    } catch (_) {
+      cb(false, 400, 'Bad Request');
+    }
+  },
+});
 
 /**
  * Broadcast a JSON message to every connected WebSocket client.
@@ -199,23 +221,30 @@ app.post('/api/session/start', apiLimiter, async (req, res) => {
     );
     const sessionId = result.insertId;
 
-    // Auto-expire unpaid session after configured timeout
-    setTimeout(async () => {
-      try {
-        await db.query(
-          "UPDATE sessions SET status = 'expired' WHERE id = ? AND status = 'unpaid'",
-          [sessionId]
-        );
-      } catch (err) {
-        console.error(`[Session] Failed to auto-expire unpaid session ${sessionId}:`, err.message);
-      }
-    }, paymentCfg.unpaidSessionExpiryMs);
-
     res.json({ session_id: sessionId, user_id: user.id });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Periodic job: expire unpaid sessions that exceed the configured timeout.
+// This replaces per-session setTimeout timers, which are unreliable across
+// process restarts and create one timer per session under load.
+const UNPAID_EXPIRY_MS  = paymentCfg.unpaidSessionExpiryMs || 300000;
+// Run the cleanup at most every minute; no more frequently than the expiry window.
+const EXPIRY_POLL_MS    = Math.min(UNPAID_EXPIRY_MS, 60_000);
+
+setInterval(async () => {
+  try {
+    const cutoff = new Date(Date.now() - UNPAID_EXPIRY_MS);
+    await db.query(
+      "UPDATE sessions SET status = 'expired' WHERE status = 'unpaid' AND start_time < ?",
+      [cutoff]
+    );
+  } catch (err) {
+    console.error('[Session] Periodic unpaid-session expiry failed:', err.message);
+  }
+}, EXPIRY_POLL_MS);
 
 // ── Helper: Confirm Payment ───────────────────────────────────────────────────
 async function confirmPayment(sessionId, txnId, amount, method) {
@@ -273,17 +302,24 @@ async function confirmPayment(sessionId, txnId, amount, method) {
   }
 
   // ── Side effects after DB commit ──────────────────────────────────────────
-  // MikroTik provisioning runs outside the transaction so a router error
-  // doesn't roll back the payment.  Operators can re-provision manually.
-  const durationSeconds = plan.duration_minutes * 60;
-  await mikrotik.addUser(user.mac_address, durationSeconds);
+  // MikroTik provisioning and broadcasts run outside the transaction.
+  // Failures here do NOT roll back the payment — the session is already active.
+  // Operators can re-provision manually if needed.
+  try {
+    const durationSeconds = plan.duration_minutes * 60;
+    await mikrotik.addUser(user.mac_address, durationSeconds);
 
-  // Broadcast unlock event
-  broadcast({ type: 'SESSION_UNLOCK', session: { id: sessionId, mac: user.mac_address, plan: plan.name } });
+    // Broadcast unlock event
+    broadcast({ type: 'SESSION_UNLOCK', session: { id: sessionId, mac: user.mac_address, plan: plan.name } });
 
-  // Broadcast updated stats
-  const [[stats]] = await db.query('SELECT * FROM operator_stats WHERE id = 1');
-  broadcast({ type: 'STATS', stats });
+    // Broadcast updated stats
+    const [[stats]] = await db.query('SELECT * FROM operator_stats WHERE id = 1');
+    broadcast({ type: 'STATS', stats });
+  } catch (err) {
+    console.error(
+      `[confirmPayment] Post-commit side effect failed for session ${sessionId}, txn ${txnId}: ${err.message}`
+    );
+  }
 
   return { session_id: sessionId, status: 'active', end_time: new Date(Date.now() + plan.duration_minutes * 60 * 1000) };
 }
@@ -304,6 +340,12 @@ app.post('/api/payment/gcash/callback', paymentLimiter, async (req, res) => {
 
 // ── REST: Stripe Webhook ──────────────────────────────────────────────────────
 app.post(STRIPE_WEBHOOK_PATH, paymentLimiter, async (req, res) => {
+  // Guard: bail early if Stripe credentials weren't configured at startup.
+  if (!STRIPE_SECRET_KEY || !STRIPE_WEBHOOK_SEC) {
+    console.error('[Stripe] Webhook received but Stripe credentials are not configured.');
+    return res.status(500).json({ error: 'Stripe not configured on this server.' });
+  }
+
   const stripe = require('stripe')(STRIPE_SECRET_KEY);
   const sig    = req.headers['stripe-signature'];
 
@@ -318,10 +360,28 @@ app.post(STRIPE_WEBHOOK_PATH, paymentLimiter, async (req, res) => {
   }
 
   if (event.type === 'payment_intent.succeeded') {
-    const pi         = event.data.object;
-    const sessionId  = parseInt(pi.metadata.session_id, 10);
-    const txnId      = pi.id;
-    const amount     = pi.amount_received / 100; // centavos → PHP
+    const pi = event.data.object;
+
+    // Validate metadata: session_id must be a positive integer string and
+    // amount_received must be a finite number.
+    const rawSessionId = pi && pi.metadata && pi.metadata.session_id;
+    const normalizedId = typeof rawSessionId === 'string' || typeof rawSessionId === 'number'
+      ? String(rawSessionId).trim()
+      : '';
+    const sessionId     = /^\d+$/.test(normalizedId) ? Number(normalizedId) : NaN;
+    const amountReceived = pi && pi.amount_received;
+
+    if (
+      !Number.isSafeInteger(sessionId) ||
+      sessionId <= 0 ||
+      typeof amountReceived !== 'number' ||
+      !Number.isFinite(amountReceived)
+    ) {
+      return res.status(400).json({ error: 'Malformed Stripe event payload.' });
+    }
+
+    const txnId  = pi.id;
+    const amount = amountReceived / 100; // centavos → PHP
     try {
       await confirmPayment(sessionId, txnId, amount, 'stripe');
     } catch (err) {

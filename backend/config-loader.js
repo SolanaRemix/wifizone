@@ -39,12 +39,15 @@ function loadConfig(name) {
   }
 
   // One-level-deep merge: for each top-level key, if both base and local hold a
-  // plain object the two objects are merged (local values win within that key).
-  // Primitive values and arrays are replaced wholesale by the local value.
+  // plain non-array object the two objects are merged (local values win within
+  // that key).  Primitive values and arrays are replaced wholesale by the local
+  // value.  Excluding Array.isArray(base[key]) prevents array entries being
+  // spread into an object with numeric keys.
   const merged = { ...base };
   for (const [key, val] of Object.entries(local)) {
     if (val !== null && typeof val === 'object' && !Array.isArray(val)
-        && typeof base[key] === 'object' && base[key] !== null) {
+        && typeof base[key] === 'object' && base[key] !== null
+        && !Array.isArray(base[key])) {
       merged[key] = { ...base[key], ...val };
     } else {
       merged[key] = val;

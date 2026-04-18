@@ -6,7 +6,6 @@
 
   // Derive WebSocket scheme from the page protocol so wss:// is used over HTTPS.
   const wsScheme     = location.protocol === 'https:' ? 'wss' : 'ws';
-  const WS_URL       = `${wsScheme}://${location.host}`;
   const PING_MS      = 15000;
   const RECONNECT_MS = 3000;
   const HOTSPOT_AUTO_REFRESH_MS = 30000;
@@ -18,6 +17,13 @@
 
   function getAuthHeaders() {
     return OPERATOR_TOKEN ? { Authorization: `Bearer ${OPERATOR_TOKEN}` } : {};
+  }
+
+  // Include the operator token as a ?token= query param so the server can
+  // authenticate the WebSocket upgrade the same way as Bearer-token REST calls.
+  function buildWsUrl() {
+    const base = `${wsScheme}://${location.host}`;
+    return OPERATOR_TOKEN ? `${base}?token=${encodeURIComponent(OPERATOR_TOKEN)}` : base;
   }
 
   const wsStatus      = document.getElementById('ws-status');
@@ -60,7 +66,7 @@
 
   // ── WebSocket ──────────────────────────────────────────────────────────────
   function connect() {
-    ws = new WebSocket(WS_URL);
+    ws = new WebSocket(buildWsUrl());
 
     ws.addEventListener('open', () => {
       wsStatus.textContent = '● LIVE';
@@ -246,6 +252,8 @@
     if (tok) {
       OPERATOR_TOKEN = tok.trim();
       sessionStorage.setItem('OPERATOR_TOKEN', OPERATOR_TOKEN);
+      // Re-connect the WebSocket with the updated token in the URL.
+      if (ws) ws.close();
     }
   }
 
