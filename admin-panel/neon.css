@@ -1,0 +1,301 @@
+/* WIFIZONE ELITE — neon.css
+   Cyberpunk neon-glow theme for the operator dashboard. */
+
+:root {
+  --bg:       #0a0a1a;
+  --surface:  #12122a;
+  --border:   #1e1e4a;
+  --cyan:     #00fff5;
+  --green:    #00ff88;
+  --yellow:   #ffe600;
+  --red:      #ff2d55;
+  --purple:   #c33aff;
+  --text:     #e0e0ff;
+  --muted:    #6060a0;
+  --radius:   8px;
+  --glow-sm:  0 0 6px;
+  --glow-md:  0 0 14px;
+  --glow-lg:  0 0 30px;
+}
+
+*,
+*::before,
+*::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Courier New', Courier, monospace;
+  min-height: 100vh;
+}
+
+/* ── Layout ───────────────────────────────────────────────────── */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+header h1 {
+  font-size: 1.4rem;
+  letter-spacing: 4px;
+  color: var(--cyan);
+  text-shadow: var(--glow-md) var(--cyan);
+}
+
+.version-tag {
+  font-size: 0.65rem;
+  padding: 2px 7px;
+  border-radius: 12px;
+  background: #0d0d22;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  letter-spacing: 1px;
+}
+
+#ws-status {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+#ws-status.connected { color: var(--green);  text-shadow: var(--glow-sm) var(--green); }
+#ws-status.error     { color: var(--red);    text-shadow: var(--glow-sm) var(--red);   }
+
+main {
+  padding: 24px;
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+/* ── Cards ────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.card.wide {
+  grid-column: 1 / -1;
+}
+
+.card h2 {
+  font-size: 0.7rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.card-header h2 { margin-bottom: 0; }
+
+.badge {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2px 10px;
+  font-size: 0.75rem;
+  color: var(--cyan);
+  min-width: 28px;
+  text-align: center;
+}
+
+.ts-line {
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 8px;
+  margin-bottom: 0;
+}
+
+/* ── Gauge ────────────────────────────────────────────────────── */
+.gauges {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.gauge-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.gauge-ring {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 6px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: border-color 0.4s, box-shadow 0.4s;
+}
+
+.gauge-ring.ok     { border-color: var(--green);  box-shadow: var(--glow-lg) var(--green);  }
+.gauge-ring.warn   { border-color: var(--yellow); box-shadow: var(--glow-lg) var(--yellow); }
+.gauge-ring.danger { border-color: var(--red);    box-shadow: var(--glow-lg) var(--red);    }
+
+.gauge-value {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: var(--cyan);
+  text-shadow: var(--glow-sm) var(--cyan);
+}
+
+.gauge-label {
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+/* ── Revenue stats ────────────────────────────────────────────── */
+#revenue-value {
+  font-size: 2.6rem;
+  color: var(--green);
+  text-shadow: var(--glow-md) var(--green);
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.stat-val {
+  font-size: 1.1rem;
+  color: var(--cyan);
+  text-shadow: var(--glow-sm) var(--cyan);
+}
+
+/* ── Refresh button ───────────────────────────────────────────── */
+.refresh-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.72rem;
+  padding: 4px 10px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: border-color 0.2s, color 0.2s;
+}
+.refresh-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+.refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Session table ────────────────────────────────────────────── */
+.table-wrap {
+  overflow-x: auto;
+  margin-top: 8px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+thead th {
+  text-align: left;
+  padding: 6px 10px;
+  color: var(--purple);
+  text-shadow: var(--glow-sm) var(--purple);
+  border-bottom: 1px solid var(--border);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.2s;
+}
+
+tbody tr:hover { background: rgba(0, 255, 245, 0.04); }
+
+tbody td {
+  padding: 8px 10px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.empty-row {
+  color: var(--muted) !important;
+  text-align: center;
+  padding: 20px !important;
+}
+
+/* ── Neon-pulse flash on session unlock ──────────────────────── */
+@keyframes neon-pulse {
+  0%   { background: rgba(0, 255, 136, 0.18); }
+  50%  { background: rgba(0, 255, 136, 0.40); }
+  100% { background: transparent; }
+}
+
+.pulse { animation: neon-pulse 0.8s ease-out; }
+
+/* ── Autopilot status ─────────────────────────────────────────── */
+#autopilot-status {
+  font-size: 0.9rem;
+  padding: 6px 12px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-bottom: 14px;
+}
+
+#autopilot-status.normal    { color: var(--green);  border: 1px solid var(--green);  }
+#autopilot-status.throttled { color: var(--yellow); border: 1px solid var(--yellow); }
+
+/* ── Queue bars ───────────────────────────────────────────────── */
+.queue-bar-wrap { margin-top: 0; }
+.queue-label    { font-size: 0.7rem; color: var(--muted); margin-bottom: 4px; letter-spacing: 1px; }
+
+.queue-bar-bg {
+  background: var(--border);
+  border-radius: 3px;
+  height: 10px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.queue-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+.queue-bar-fill.vip     { background: var(--cyan);   box-shadow: var(--glow-sm) var(--cyan);   }
+.queue-bar-fill.regular { background: var(--purple);  box-shadow: var(--glow-sm) var(--purple); }
+
+/* ── Scrollbar ────────────────────────────────────────────────── */
+::-webkit-scrollbar              { width: 6px; height: 6px; }
+::-webkit-scrollbar-track        { background: var(--bg); }
+::-webkit-scrollbar-thumb        { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover  { background: var(--muted); }

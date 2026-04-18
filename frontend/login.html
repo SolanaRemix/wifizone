@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WIFIZONE ELITE — Activate Session</title>
+  <style>
+    :root {
+      --bg:     #0a0a1a;
+      --surface:#12122a;
+      --border: #1e1e4a;
+      --cyan:   #00fff5;
+      --green:  #00ff88;
+      --yellow: #ffe600;
+      --red:    #ff2d55;
+      --text:   #e0e0ff;
+      --muted:  #6060a0;
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Courier New', Courier, monospace;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 36px 40px;
+      width: 100%;
+      max-width: 460px;
+    }
+    h1 {
+      color: var(--cyan);
+      font-size: 1.4rem;
+      letter-spacing: 4px;
+      text-shadow: 0 0 12px var(--cyan);
+      margin-bottom: 6px;
+      text-align: center;
+    }
+    .sub {
+      text-align: center;
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 2px;
+      margin-bottom: 28px;
+    }
+    .info-block {
+      background: #0d0d22;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px 16px;
+      margin-bottom: 20px;
+    }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      margin-bottom: 6px;
+    }
+    .info-row:last-child { margin-bottom: 0; }
+    .info-label { color: var(--muted); letter-spacing: 1px; }
+    .info-val   { color: var(--cyan);  font-weight: bold; }
+
+    .status-pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+    .status-pill.unpaid  { background:#2a2000; color:var(--yellow); border:1px solid var(--yellow); }
+    .status-pill.active  { background:#002a14; color:var(--green);  border:1px solid var(--green);  }
+    .status-pill.expired { background:#2a0010; color:var(--red);    border:1px solid var(--red);    }
+    .status-pill.unknown { background:#1a1a2e; color:var(--muted);  border:1px solid var(--muted);  }
+
+    .steps {
+      margin-bottom: 22px;
+    }
+    .steps h3 {
+      font-size: 0.68rem;
+      letter-spacing: 3px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 0.82rem;
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: bold;
+    }
+    .step-text { color: var(--text); line-height: 1.4; }
+    .step-text em { color: var(--cyan); font-style: normal; }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: var(--radius);
+      background: var(--cyan);
+      color: #000;
+      font-family: inherit;
+      font-size: 0.9rem;
+      letter-spacing: 2px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: box-shadow 0.3s;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .btn:hover    { box-shadow: 0 0 18px var(--cyan); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn.secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+    .btn.secondary:hover { border-color: var(--cyan); color: var(--cyan); }
+
+    #msg {
+      margin-top: 12px;
+      font-size: 0.8rem;
+      text-align: center;
+      min-height: 20px;
+      line-height: 1.5;
+    }
+    #msg.ok    { color: var(--green); }
+    #msg.error { color: var(--red);   }
+    #msg.info  { color: var(--yellow); }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 20px 0;
+    }
+
+    .ref-input-wrap { margin-bottom: 16px; }
+    label {
+      display: block;
+      font-size: 0.68rem;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+    input[type="text"]:focus { border-color: var(--cyan); }
+  </style>
+</head>
+<body>
+
+<div class="box">
+  <h1>⚡ ACTIVATE</h1>
+  <p class="sub">WIFIZONE ELITE — SESSION PORTAL</p>
+
+  <!-- Session info block -->
+  <div class="info-block">
+    <div class="info-row">
+      <span class="info-label">Session ID</span>
+      <span class="info-val" id="sess-id">—</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Payment Method</span>
+      <span class="info-val" id="sess-method">—</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Status</span>
+      <span id="sess-status"><span class="status-pill unknown">CHECKING…</span></span>
+    </div>
+    <div class="info-row" id="row-plan" style="display:none;">
+      <span class="info-label">Plan</span>
+      <span class="info-val" id="sess-plan">—</span>
+    </div>
+    <div class="info-row" id="row-end" style="display:none;">
+      <span class="info-label">Expires</span>
+      <span class="info-val" id="sess-end">—</span>
+    </div>
+  </div>
+
+  <!-- Payment instructions -->
+  <div class="steps" id="instructions">
+    <h3>How to Activate</h3>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-text">
+        Open your payment app (<em id="provider-name">GCash</em>) and send payment to the operator's number/QR code.
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-text">
+        Note down your <em>reference number</em> from the payment confirmation screen.
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-text">
+        Enter your reference number below and tap <em>Submit Reference</em>. The operator will verify and activate your session.
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-text">
+        Once activated, this page will automatically detect your live connection. Or tap <em>Check Status</em>.
+      </div>
+    </div>
+  </div>
+
+  <!-- Reference number input (for operator lookup — NOT for self-activation) -->
+  <div class="ref-input-wrap">
+    <label for="txn-input">Your Transaction / Reference Number</label>
+    <input type="text" id="txn-input" placeholder="e.g. GCash ref 1234 5678" autocomplete="off" />
+  </div>
+
+  <button class="btn" id="submit-ref-btn">Submit Reference to Operator</button>
+  <button class="btn secondary" id="check-btn">↻ Check Status</button>
+
+  <p id="msg"></p>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const params    = new URLSearchParams(location.search);
+  const sessionId = parseInt(params.get('session'), 10);
+  const method    = (params.get('method') || 'gcash').toLowerCase();
+
+  const providerName = method === 'stripe' ? 'Stripe / Card' : 'GCash';
+
+  document.getElementById('sess-id').textContent     = sessionId || '—';
+  document.getElementById('sess-method').textContent = providerName;
+  document.getElementById('provider-name').textContent = providerName;
+
+  const msgEl       = document.getElementById('msg');
+  const checkBtn    = document.getElementById('check-btn');
+  const submitBtn   = document.getElementById('submit-ref-btn');
+  const statusWrap  = document.getElementById('sess-status');
+
+  function showMsg(text, cls) {
+    msgEl.textContent = text;
+    msgEl.className   = cls || '';
+  }
+
+  function setStatusPill(status) {
+    const cls  = ['active','expired','unpaid'].includes(status) ? status : 'unknown';
+    const pill = document.createElement('span');
+    pill.className   = `status-pill ${cls}`;
+    pill.textContent = String(status).toUpperCase();
+    statusWrap.replaceChildren(pill);
+  }
+
+  // ── Poll session status ────────────────────────────────────────────────────
+  async function checkStatus() {
+    if (!sessionId) { showMsg('No session ID found. Go back and select a plan.', 'error'); return; }
+    checkBtn.disabled = true;
+    showMsg('Checking…', 'info');
+
+    try {
+      const res  = await fetch(`/api/session/${sessionId}/status`);
+      const data = await res.json();
+
+      if (!res.ok) { showMsg(data.error || 'Could not fetch status.', 'error'); return; }
+
+      setStatusPill(data.status);
+
+      const planRow = document.getElementById('row-plan');
+      const endRow  = document.getElementById('row-end');
+
+      if (data.status === 'active') {
+        document.getElementById('sess-plan').textContent = data.plan || '—';
+        document.getElementById('sess-end').textContent  =
+          data.end_time ? new Date(data.end_time).toLocaleString() : '—';
+        planRow.style.display = '';
+        endRow.style.display  = '';
+        document.getElementById('instructions').style.display = 'none';
+        submitBtn.style.display = 'none';
+        showMsg('✅ Internet activated! You are connected.', 'ok');
+      } else if (data.status === 'expired') {
+        showMsg('⚠️ This session has expired. Go back and start a new session.', 'error');
+      } else {
+        showMsg('Payment not confirmed yet. Please complete your payment and check again.', 'info');
+      }
+    } catch (err) {
+      showMsg('Network error. Please try again.', 'error');
+    } finally {
+      checkBtn.disabled = false;
+    }
+  }
+
+  // ── Submit reference (POSTs ref to backend so operator can look it up) ──────
+  submitBtn.addEventListener('click', async () => {
+    const txnRef = document.getElementById('txn-input').value.trim();
+    if (!txnRef) { showMsg('Please enter your transaction reference number.', 'error'); return; }
+    if (!sessionId) { showMsg('No session ID. Go back and select a plan.', 'error'); return; }
+
+    submitBtn.disabled = true;
+    try {
+      const res  = await fetch(`/api/session/${sessionId}/reference`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ reference: txnRef }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showMsg(data.error || 'Failed to submit reference.', 'error');
+      } else {
+        showMsg(
+          data.message ||
+          `Reference submitted. The operator will verify your ${providerName} payment and activate your session.`,
+          'info'
+        );
+      }
+    } catch {
+      showMsg('Network error. Please try again.', 'error');
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+
+  checkBtn.addEventListener('click', checkStatus);
+
+  // Auto-check on load — delayed by 1.5 s to let the backend finish writing
+  // the session row before we query its status.
+  if (sessionId) setTimeout(checkStatus, 1500);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WIFIZONE ELITE — Get Connected</title>
+  <style>
+    :root {
+      --bg:       #0a0a1a;
+      --surface:  #12122a;
+      --border:   #1e1e4a;
+      --cyan:     #00fff5;
+      --green:    #00ff88;
+      --yellow:   #ffe600;
+      --text:     #e0e0ff;
+      --muted:    #6060a0;
+      --radius:   10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Courier New', Courier, monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    /* ── Hero ── */
+    .hero { text-align: center; margin-bottom: 40px; }
+    .hero h1 {
+      color: var(--cyan);
+      font-size: 2.4rem;
+      letter-spacing: 6px;
+      text-shadow: 0 0 20px var(--cyan), 0 0 40px rgba(0,255,245,0.3);
+      animation: glow-pulse 3s ease-in-out infinite alternate;
+    }
+    @keyframes glow-pulse {
+      from { text-shadow: 0 0 14px var(--cyan), 0 0 30px rgba(0,255,245,0.2); }
+      to   { text-shadow: 0 0 28px var(--cyan), 0 0 60px rgba(0,255,245,0.5); }
+    }
+    .hero .tagline {
+      color: var(--muted);
+      font-size: 0.8rem;
+      letter-spacing: 3px;
+      margin-top: 8px;
+    }
+    .hero .badge-row {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+    .badge {
+      font-size: 0.65rem;
+      padding: 3px 10px;
+      border-radius: 20px;
+      letter-spacing: 1px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .badge.green { border-color: var(--green); color: var(--green); }
+    .badge.cyan  { border-color: var(--cyan);  color: var(--cyan);  }
+
+    /* ── Plan grid ── */
+    .plans {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px;
+      width: 100%;
+      max-width: 680px;
+      margin-bottom: 28px;
+    }
+    .plan-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 14px;
+      cursor: pointer;
+      transition: border-color 0.25s, box-shadow 0.25s, transform 0.15s;
+      text-align: center;
+      position: relative;
+    }
+    .plan-card:hover {
+      border-color: var(--cyan);
+      box-shadow: 0 0 12px rgba(0,255,245,0.25);
+      transform: translateY(-2px);
+    }
+    .plan-card.selected {
+      border-color: var(--cyan);
+      box-shadow: 0 0 20px rgba(0,255,245,0.4);
+    }
+    .plan-card.selected::before {
+      content: '✓';
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      font-size: 0.7rem;
+      color: var(--cyan);
+    }
+    .plan-name  { font-size: 0.85rem; color: var(--text);  letter-spacing: 1px; margin-bottom: 6px; }
+    .plan-price { font-size: 1.4rem;  color: var(--green); text-shadow: 0 0 8px var(--green); font-weight: bold; }
+    .plan-note  { font-size: 0.65rem; color: var(--muted); margin-top: 4px; }
+
+    /* ── CTA buttons ── */
+    .cta { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-bottom: 22px; }
+    .btn {
+      padding: 13px 30px;
+      border-radius: var(--radius);
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.88rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      font-weight: bold;
+      transition: box-shadow 0.25s, transform 0.15s;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn:active { transform: scale(0.97); }
+    .btn-gcash  { background: #005bff; color: #fff; }
+    .btn-gcash:hover  { box-shadow: 0 0 20px rgba(0,91,255,0.7); }
+    .btn-stripe { background: #635bff; color: #fff; }
+    .btn-stripe:hover { box-shadow: 0 0 20px rgba(99,91,255,0.7); }
+
+    /* ── Footer links ── */
+    .footer-links { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+    a.footer-link {
+      color: var(--muted);
+      font-size: 0.72rem;
+      text-decoration: none;
+      letter-spacing: 1px;
+    }
+    a.footer-link:hover { color: var(--cyan); }
+
+    /* ── Error message ── */
+    #error-msg {
+      margin-top: 0;
+      margin-bottom: 16px;
+      font-size: 0.78rem;
+      color: #ff2d55;
+      min-height: 18px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>⚡ WIFIZONE</h1>
+  <p class="tagline">FAST · RELIABLE · AFFORDABLE</p>
+  <div class="badge-row">
+    <span class="badge green">✔ MikroTik Powered</span>
+    <span class="badge cyan">✔ Instant Activation</span>
+    <span class="badge">✔ Secure Connection</span>
+  </div>
+</div>
+
+<div class="plans" id="plans-container">
+  <p style="color:var(--muted);text-align:center;grid-column:1/-1;">Loading plans…</p>
+</div>
+
+<p id="error-msg"></p>
+
+<div class="cta">
+  <button class="btn btn-gcash"  id="btn-gcash">📱 Pay via GCash</button>
+  <button class="btn btn-stripe" id="btn-stripe">💳 Pay via Card</button>
+</div>
+
+<div class="footer-links">
+  <a href="login.html" class="footer-link">Already paid? Check activation →</a>
+  <a href="/api/plans" class="footer-link" target="_blank">View plans JSON</a>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  let selectedPlanId = null;
+  const errEl = document.getElementById('error-msg');
+
+  function showError(msg) { errEl.textContent = msg; }
+  function clearError()   { errEl.textContent = ''; }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g,  '&amp;')
+      .replace(/</g,  '&lt;')
+      .replace(/>/g,  '&gt;')
+      .replace(/"/g,  '&quot;');
+  }
+
+  // ── Load plans ─────────────────────────────────────────────────────────────
+  fetch('/api/plans')
+    .then(r => r.json())
+    .then(plans => {
+      const container = document.getElementById('plans-container');
+      container.innerHTML = '';
+      plans.forEach(plan => {
+        const card = document.createElement('div');
+        card.className      = 'plan-card';
+        card.dataset.planId = plan.id;
+        const hrs = Math.floor(plan.duration_minutes / 60);
+        const note = hrs >= 24
+          ? `${Math.floor(hrs / 24)} day${hrs / 24 > 1 ? 's' : ''}`
+          : hrs > 0 ? `${hrs} hr${hrs > 1 ? 's' : ''}` : `${plan.duration_minutes} min`;
+        card.innerHTML =
+          `<div class="plan-name">${escHtml(plan.name)}</div>` +
+          `<div class="plan-price">₱${parseFloat(plan.price_pesos).toFixed(0)}</div>` +
+          `<div class="plan-note">${escHtml(note)}</div>`;
+        card.addEventListener('click', () => {
+          document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          selectedPlanId = plan.id;
+          clearError();
+        });
+        container.appendChild(card);
+      });
+    })
+    .catch(() => {
+      document.getElementById('plans-container').innerHTML =
+        '<p style="color:#ff2d55;text-align:center;grid-column:1/-1;">Unable to load plans. Is the server running?</p>';
+    });
+
+  function getMac() {
+    const params = new URLSearchParams(location.search);
+    const mac = (params.get('mac') || '').trim();
+    const macPattern = /^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/;
+    if (!mac || !macPattern.test(mac)) return null;
+    return mac.toLowerCase();
+  }
+
+  async function startSession() {
+    if (!selectedPlanId) { showError('Please select a plan first.'); return null; }
+    const macAddress = getMac();
+    if (!macAddress) {
+      showError('Missing or invalid device identifier. Please reconnect using the captive portal link.');
+      return null;
+    }
+    clearError();
+    try {
+      const res = await fetch('/api/session/start', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ mac_address: macAddress, plan_id: selectedPlanId }),
+      });
+      const data = await res.json();
+      if (!res.ok) { showError(data.error || 'Failed to start session.'); return null; }
+      return data.session_id;
+    } catch (err) {
+      showError('Network error. Please try again.');
+      return null;
+    }
+  }
+
+  document.getElementById('btn-gcash').addEventListener('click', async () => {
+    const sessionId = await startSession();
+    if (!sessionId) return;
+    window.location.href = `login.html?session=${sessionId}&method=gcash`;
+  });
+
+  document.getElementById('btn-stripe').addEventListener('click', async () => {
+    const sessionId = await startSession();
+    if (!sessionId) return;
+    window.location.href = `login.html?session=${sessionId}&method=stripe`;
+  });
+})();
+</script>
+</body>
+</html>

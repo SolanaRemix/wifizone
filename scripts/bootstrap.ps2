@@ -1,0 +1,23 @@
+# WIFIZONE ELITE — Extended Bootstrap (Windows PowerShell)
+# bootstrap.ps2 — Launches backend with Starlink SNMP polling,
+#                  autopilot, and dish auto-controls.
+
+Write-Host "🚀 Launching WIFIZONE ELITE with autopilot + dish controls..." -ForegroundColor Cyan
+
+# ── 1. Run Python deployer in a separate window (it manages the backend) ──────
+if (Get-Command python -ErrorAction SilentlyContinue) {
+    Write-Host "🐍 Running deployer.py in a separate window…" -ForegroundColor Yellow
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "python '$PSScriptRoot\deployer.py'"
+} else {
+    Write-Warning "Python not found — skipping deployer.py"
+}
+
+# ── 2. Backend is started and tailed by deployer.py ───────────────────────────
+Write-Host "🟢 Backend startup is managed by deployer.py (see the new window)…" -ForegroundColor Green
+
+# ── 3. Open admin dashboard ───────────────────────────────────────────────────
+Start-Sleep -Seconds 2
+Write-Host "🌐 Opening operator cockpit…" -ForegroundColor Cyan
+Start-Process "http://localhost:3000"
+
+Write-Host "✅ Autopilot + Starlink dish controls active." -ForegroundColor Green

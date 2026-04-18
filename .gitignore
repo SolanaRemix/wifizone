@@ -1,0 +1,20 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment
+.env
+
+# Local config overrides (never commit real credentials)
+config/router.local.json
+config/payment.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+nohup.out
