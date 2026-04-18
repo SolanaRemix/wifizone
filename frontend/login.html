@@ -277,8 +277,11 @@
   }
 
   function setStatusPill(status) {
-    const cls = ['active','expired','unpaid'].includes(status) ? status : 'unknown';
-    statusWrap.innerHTML = `<span class="status-pill ${cls}">${status.toUpperCase()}</span>`;
+    const cls  = ['active','expired','unpaid'].includes(status) ? status : 'unknown';
+    const pill = document.createElement('span');
+    pill.className   = `status-pill ${cls}`;
+    pill.textContent = String(status).toUpperCase();
+    statusWrap.replaceChildren(pill);
   }
 
   // ── Poll session status ────────────────────────────────────────────────────

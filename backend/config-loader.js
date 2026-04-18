@@ -30,11 +30,19 @@ function loadConfig(name) {
   let local = {};
 
   if (fs.existsSync(basePath)) {
-    base = JSON.parse(fs.readFileSync(basePath, 'utf8'));
+    try {
+      base = JSON.parse(fs.readFileSync(basePath, 'utf8'));
+    } catch (err) {
+      throw new Error(`[config-loader] Failed to parse ${basePath}: ${err.message}`);
+    }
   }
 
   if (fs.existsSync(localPath)) {
-    local = JSON.parse(fs.readFileSync(localPath, 'utf8'));
+    try {
+      local = JSON.parse(fs.readFileSync(localPath, 'utf8'));
+    } catch (err) {
+      throw new Error(`[config-loader] Failed to parse ${localPath}: ${err.message}`);
+    }
     console.log(`[Config] Loaded ${name}.local.json overrides`);
   }
 

@@ -11,6 +11,7 @@
  *   POST /api/payment/stripe/webhook  — Stripe payment webhook
  *   GET  /api/telemetry               — latest SNMP telemetry snapshot
  *   GET  /api/stats                   — operator stats (clients + revenue)
+ *   GET  /api/config/thresholds       — autopilot threshold config for dashboard
  *   GET  /api/hotspot/users           — live active sessions from MikroTik
  *   GET  /api/session/:id/status      — current status of a session (for client polling)
  *
@@ -43,6 +44,14 @@ const STRIPE_SECRET_KEY  = process.env.STRIPE_SECRET_KEY  || paymentCfg.stripe.s
 const STRIPE_WEBHOOK_SEC = process.env.STRIPE_WEBHOOK_SEC || paymentCfg.stripe.webhookSecret;
 if (!STRIPE_SECRET_KEY)  console.warn('[WIFIZONE] WARNING: Stripe secret key not configured (set STRIPE_SECRET_KEY env var).');
 if (!STRIPE_WEBHOOK_SEC) console.warn('[WIFIZONE] WARNING: Stripe webhook secret not configured (set STRIPE_WEBHOOK_SEC env var).');
+
+// GCash callback shared secret — gate the callback route when configured.
+// Set GCASH_WEBHOOK_SECRET env var in production to prevent unauthenticated
+// session activations from arbitrary callers.
+const GCASH_WEBHOOK_SECRET = process.env.GCASH_WEBHOOK_SECRET || '';
+if (!GCASH_WEBHOOK_SECRET) {
+  console.warn('[WIFIZONE] WARNING: GCASH_WEBHOOK_SECRET not set — GCash callback is unprotected!');
+}
 
 // Operator API token guards dashboard-only endpoints.
 // Set OPERATOR_API_TOKEN env var in production.  Omitting it logs a startup
@@ -198,6 +207,12 @@ app.post('/api/session/start', apiLimiter, async (req, res) => {
   }
 
   try {
+    // Validate plan exists before doing anything else
+    const [[plan]] = await db.query('SELECT id FROM plans WHERE id = ?', [plan_id]);
+    if (!plan) {
+      return res.status(404).json({ error: 'Plan not found' });
+    }
+
     // Upsert user
     await db.query(
       'INSERT INTO users (mac_address, device_name) VALUES (?, ?) ON DUPLICATE KEY UPDATE device_name = VALUES(device_name)',
@@ -268,6 +283,14 @@ async function confirmPayment(sessionId, txnId, amount, method) {
     [[user]] = await connection.query('SELECT * FROM users WHERE id = ?', [session.user_id]);
     if (!user) throw new Error('User not found for session');
 
+    // Validate amount: must be a finite positive number that meets the plan price
+    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) {
+      throw new Error('Invalid payment amount');
+    }
+    if (amount < plan.price_pesos - 0.01) {
+      throw new Error(`Underpayment: received ₱${amount.toFixed(2)}, plan requires ₱${plan.price_pesos}`);
+    }
+
     // Calculate session end time
     const endTime = new Date(Date.now() + plan.duration_minutes * 60 * 1000);
 
@@ -321,17 +344,29 @@ async function confirmPayment(sessionId, txnId, amount, method) {
     );
   }
 
-  return { session_id: sessionId, status: 'active', end_time: new Date(Date.now() + plan.duration_minutes * 60 * 1000) };
+  return { session_id: sessionId, status: 'active', end_time: endTime };
 }
 
 // ── REST: GCash Callback ──────────────────────────────────────────────────────
 app.post('/api/payment/gcash/callback', paymentLimiter, async (req, res) => {
+  // If a shared secret is configured, require it in the X-GCash-Secret header.
+  if (GCASH_WEBHOOK_SECRET) {
+    const provided = req.headers['x-gcash-secret'] || '';
+    if (provided !== GCASH_WEBHOOK_SECRET) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+  }
+
   const { session_id, txn_id, amount } = req.body;
   if (!session_id || !txn_id || !amount) {
     return res.status(400).json({ error: 'session_id, txn_id, and amount required' });
   }
+  const parsedAmount = parseFloat(amount);
+  if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+    return res.status(400).json({ error: 'Invalid amount' });
+  }
   try {
-    const result = await confirmPayment(session_id, txn_id, parseFloat(amount), 'gcash');
+    const result = await confirmPayment(session_id, txn_id, parsedAmount, 'gcash');
     res.json(result);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -447,17 +482,39 @@ app.post('/api/session/:id/reference', apiLimiter, async (req, res) => {
     return res.status(400).json({ error: 'reference is required' });
   }
   try {
-    const [[session]] = await db.query('SELECT id, status FROM sessions WHERE id = ?', [sessionId]);
+    const trimmedReference = reference.trim().substring(0, 100);
+    const [[session]] = await db.query(
+      'SELECT id, status, reference_txn FROM sessions WHERE id = ?',
+      [sessionId]
+    );
     if (!session) return res.status(404).json({ error: 'Session not found' });
-    if (session.status === 'active') return res.json({ message: 'Session already active' });
+    if (session.status !== 'unpaid') {
+      return res.status(409).json({ error: 'References can only be submitted for unpaid sessions' });
+    }
+    if (session.reference_txn && String(session.reference_txn).trim()) {
+      return res.status(409).json({ error: 'Reference has already been recorded for this session' });
+    }
     await db.query(
       'UPDATE sessions SET reference_txn = ? WHERE id = ?',
-      [reference.trim().substring(0, 100), sessionId]
+      [trimmedReference, sessionId]
     );
     res.json({ message: 'Reference recorded. The operator will verify your payment shortly.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ── REST: Config thresholds (operator) ───────────────────────────────────────
+// Returns the autopilot threshold values from config/router(.local).json so the
+// dashboard can display indicators that match actual autopilot behaviour.
+app.get('/api/config/thresholds', requireOperatorAuth, (_req, res) => {
+  const routerCfg = loadConfig('router');
+  const t = routerCfg.thresholds || {};
+  res.json({
+    latencyMs: t.latencyMs      ?? 150,
+    jitterMs:  t.jitterMs       ?? 30,
+    cpuLoad:   t.cpuLoadPercent ?? 80,
+  });
 });
 
 // ── REST: Stats ───────────────────────────────────────────────────────────────

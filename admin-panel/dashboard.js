@@ -54,8 +54,15 @@
   let pingTimer;
   let sessions = [];
 
-  // Thresholds (mirrors config/router.json values)
-  const T = { latencyMs: 150, jitterMs: 30, cpuLoad: 80 };
+  // Thresholds — defaults used until the backend config is fetched on load.
+  // Fetched from /api/config/thresholds so the UI reflects the actual autopilot
+  // behaviour configured in config/router(.local).json.
+  let T = { latencyMs: 150, jitterMs: 30, cpuLoad: 80 };
+
+  fetch('/api/config/thresholds', { headers: getAuthHeaders() })
+    .then(r => r.ok ? r.json() : null)
+    .then(data => { if (data) T = data; })
+    .catch(() => {});
 
   // ── Clock ──────────────────────────────────────────────────────────────────
   function tickClock() {
