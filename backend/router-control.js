@@ -46,30 +46,60 @@ async function withConnection(work) {
  */
 async function unlockUser(macAddress, durationMinutes) {
   await withConnection(async connection => {
-    return new Promise((resolve, reject) => {
-      const channel = connection.openChannel('unlock');
+    function runCommand(channelName, words) {
+      return new Promise((resolve, reject) => {
+        const channel = connection.openChannel(channelName);
+        const rows = [];
 
-      channel.on('trap',  reject);
-      channel.on('error', reject);
-      channel.on('done',  resolve);
+        channel.on('trap', reject);
+        channel.on('error', reject);
+        channel.on('data', data => {
+          rows.push(data);
+        });
+        channel.on('done', () => resolve(rows));
 
-      // Remove stale entry if present (ignore errors)
-      channel.write([
+        channel.write(words);
+        channel.close();
+      });
+    }
+
+    function getField(row, fieldName) {
+      if (!row) return undefined;
+      if (typeof row === 'object' && !Array.isArray(row)) {
+        return row[fieldName] ?? row[`=${fieldName}`];
+      }
+      if (Array.isArray(row)) {
+        const prefix = `=${fieldName}=`;
+        const match = row.find(item => typeof item === 'string' && item.startsWith(prefix));
+        return match ? match.slice(prefix.length) : undefined;
+      }
+      return undefined;
+    }
+
+    // Remove stale entry if present by first querying the real RouterOS .id.
+    const existingUsers = await runCommand('unlock-find', [
+      '/ip/hotspot/user/print',
+      '?mac-address=' + macAddress,
+      '=.proplist=.id',
+    ]);
+
+    for (const row of existingUsers) {
+      const userId = getField(row, '.id');
+      if (!userId) continue;
+      await runCommand('unlock-remove', [
         '/ip/hotspot/user/remove',
-        `=.id=[find where mac-address=${macAddress}]`,
+        `=.id=${userId}`,
       ]);
+    }
 
-      // Add fresh entry with session limit
-      channel.write([
-        '/ip/hotspot/user/add',
-        `=mac-address=${macAddress}`,
-        `=profile=REGULAR`,
-        `=limit-uptime=${Math.floor(durationMinutes / 60)}h${durationMinutes % 60}m`,
-        `=comment=wifizone-auto`,
-      ]);
-
-      channel.close();
-    });
+    // Add fresh entry with session limit
+    await runCommand('unlock-add', [
+      '/ip/hotspot/user/add',
+      `=mac-address=${macAddress}`,
+      `=profile=REGULAR`,
+      `=limit-uptime=${Math.floor(durationMinutes / 60)}h${durationMinutes % 60}m`,
+      `=comment=wifizone-auto`,
+    ]);
   });
 
   console.log(`[RouterControl] Unlocked ${macAddress} for ${durationMinutes} min`);
