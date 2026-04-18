@@ -33,19 +33,19 @@ WIFIZONE ELITE turns a MikroTik router into a full captive portal with time-base
 
 The operator dashboard shows live Starlink telemetry gauges, total revenue, autopilot queue status, the last 50 session unlocks (via WebSocket), and a live MikroTik hotspot users table that auto-refreshes every 30 s.
 
-![Admin Dashboard](docs/screenshot-dashboard.png)
+![Admin Dashboard](https://github.com/user-attachments/assets/f8feeff2-be27-4a39-800b-9b2c1570a1eb)
 
 ### User Landing Page (Captive Portal)
 
 The client-facing portal lists available plans and lets users choose GCash or Card payment.
 
-![Landing Page](docs/screenshot-landing.png)
+![Landing Page](https://github.com/user-attachments/assets/84349bcc-90d7-438f-8009-f9a80c6abf21)
 
 ### Session Activation Page
 
 After selecting a plan, users are redirected here. They enter their payment reference number for operator verification, and the page polls the backend every time they click "Check Status" to detect when the operator has activated their session.
 
-![Activation Page](docs/screenshot-activate.png)
+![Activation Page](https://github.com/user-attachments/assets/fbd4c2f1-faf6-4970-b1b1-116a90256ca8)
 
 ---
 
