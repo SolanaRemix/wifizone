@@ -10,14 +10,15 @@
  * ────────────
  * Two overlapping timers share a single syncUsers() call per tick:
  *
- *   1. MAC-presence poller (every PRESENCE_POLL_MS, default 15 s)
+ *   1. MAC-presence poller (every PRESENCE_POLL_MS, default 5 s)
  *      • Calls mikrotik.syncUsers() and feeds results into handoff-buffer.
  *      • Updates last-seen timestamps so the buffer stays fresh.
+ *      • Skips the tick if the previous one is still in flight.
  *
  *   2. Full reconciliation (every RECONCILE_INTERVAL_MS, default 60 s)
  *      • Compares DB active sessions with live router sessions.
- *      • Purges unauthorised MACs from the router (in DB but not active →
- *        router has a stale entry).
+ *      • Purges unauthorised MACs from the router (present on the router
+ *        but not in the DB → router has a stale/unauthorised entry).
  *      • Re-provisions MACs that are in DB but missing from the router
  *        (handles lost state after network hiccups), skipping any that are
  *        still within their handoff-buffer grace window.
@@ -30,6 +31,9 @@
  * Configuration (config/router.json):
  *   reconcileIntervalMs  — full reconciliation period (default 60 000 ms)
  *   handoffBufferMs      — MAC grace window            (default 15 000 ms)
+ *   presencePollMs       — how often to poll for MAC presence (default  5 000 ms)
+ *                          Must be significantly smaller than handoffBufferMs so the
+ *                          buffer can detect transient absences within the grace window.
  */
 
 const mikrotik      = require('./mikrotik');
@@ -39,11 +43,14 @@ const { loadConfig } = require('./config-loader');
 
 const _cfg                  = loadConfig('router');
 const RECONCILE_INTERVAL_MS = _cfg.reconcileIntervalMs || 60000;
-const PRESENCE_POLL_MS      = _cfg.handoffBufferMs     || 15000;
+// presencePollMs is intentionally decoupled from handoffBufferMs so the
+// buffer can observe multiple absences within a single grace window.
+// Default: 5 s (3× within the 15 s handoff window).
+const PRESENCE_POLL_MS      = _cfg.presencePollMs      || 5000;
 
-let _db              = null;
-let _presenceTimer   = null;
-let _reconcileTimer  = null;
+let _db            = null;
+let _presenceTimer = null;
+let _inFlight      = false;   // in-flight guard — skip tick if prior one is still running
 
 // Cumulative statistics
 let _runs            = 0;
@@ -144,24 +151,27 @@ async function reconcile(cachedRouterSessions) {
   const routerMacs = new Map(routerSessions.map(r => [r.mac.toLowerCase(), r]));
 
   // ── 3. Purge router MACs that are NOT in the DB ────────────────────────────
-  for (const [routerMac] of routerMacs) {
+  for (const [routerMac, routerSession] of routerMacs) {
     if (!dbMacs.has(routerMac)) {
+      // Use the original MAC casing from the router session so the RouterOS
+      // user name lookup matches exactly what was created at provisioning time.
+      const originalMac = routerSession.mac;
       try {
-        await mikrotik.removeUser(routerMac);
+        await mikrotik.removeUser(originalMac);
         handoffBuffer.forget(routerMac);
         logRing.push({
           level:  'info',
           module: 'FirewallSync',
-          msg:    `Purged unauthorised MAC from router: ${routerMac}`,
-          meta:   { mac: routerMac },
+          msg:    `Purged unauthorised MAC from router: ${originalMac}`,
+          meta:   { mac: originalMac },
         });
         removed++;
       } catch (err) {
         logRing.push({
           level:  'error',
           module: 'FirewallSync',
-          msg:    `Failed to remove ${routerMac}: ${err.message}`,
-          meta:   { mac: routerMac },
+          msg:    `Failed to remove ${originalMac}: ${err.message}`,
+          meta:   { mac: originalMac },
         });
         errors++;
       }
@@ -227,14 +237,16 @@ async function reconcile(cachedRouterSessions) {
       continue;
     }
 
-    // Re-provision: idempotent addUser removes any stale entry first
+    // Re-provision: idempotent addUser removes any stale entry first.
+    // Use row.mac_address (canonical DB value) to keep RouterOS name casing
+    // consistent with the original provisioning done by confirmPayment().
     try {
-      await mikrotik.addUser(mac, remaining, row.profile || 'REGULAR');
+      await mikrotik.addUser(row.mac_address, remaining, row.profile || 'REGULAR');
       logRing.push({
         level:  'info',
         module: 'FirewallSync',
-        msg:    `Re-provisioned missing MAC: ${mac} (${remaining}s remaining)`,
-        meta:   { mac, sessionId: row.session_id, remaining },
+        msg:    `Re-provisioned missing MAC: ${row.mac_address} (${remaining}s remaining)`,
+        meta:   { mac: row.mac_address, sessionId: row.session_id, remaining },
       });
       handoffBuffer.recordConfirmedLoss();
       added++;
@@ -242,8 +254,8 @@ async function reconcile(cachedRouterSessions) {
       logRing.push({
         level:  'error',
         module: 'FirewallSync',
-        msg:    `Failed to re-provision ${mac}: ${err.message}`,
-        meta:   { mac },
+        msg:    `Failed to re-provision ${row.mac_address}: ${err.message}`,
+        meta:   { mac: row.mac_address },
       });
       errors++;
     }
@@ -297,7 +309,20 @@ function start() {
   let tick = 0;
 
   _presenceTimer = setInterval(async () => {
+    // Skip this tick entirely if the previous one hasn't finished yet.
+    // This prevents concurrent MikroTik calls and DB updates under slow
+    // router/network conditions (e.g. Starlink congestion).
+    if (_inFlight) {
+      logRing.push({
+        level:  'warn',
+        module: 'FirewallSync',
+        msg:    'Skipping presence tick — previous tick still in flight',
+      });
+      return;
+    }
+
     tick++;
+    _inFlight = true;
     try {
       // Always update the handoff buffer
       const sessions = await _fetchAndUpdateBuffer();
@@ -308,6 +333,8 @@ function start() {
       }
     } catch (err) {
       console.error('[FirewallSync]', err.message);
+    } finally {
+      _inFlight = false;
     }
   }, PRESENCE_POLL_MS);
 }
@@ -318,8 +345,7 @@ function start() {
 function stop() {
   if (_presenceTimer) {
     clearInterval(_presenceTimer);
-    _presenceTimer  = null;
-    _reconcileTimer = null;
+    _presenceTimer = null;
   }
 }
 

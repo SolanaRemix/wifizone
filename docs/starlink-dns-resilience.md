@@ -81,17 +81,19 @@ add name=www.msftconnecttest.com        address=192.168.88.1
 ### 4. Serve minimal HTTP 204 responses
 
 The OS connectivity checkers expect either a redirect (captive portal) or an
-HTTP **204 No Content** (internet confirmed).  Add a lightweight Express
-handler in the backend:
+HTTP **204 No Content** (internet confirmed).  The backend already serves these
+endpoints — they are registered in `backend/server.js` immediately after the
+static-file middleware:
 
 ```js
-// backend/server.js — already included in the router.json-driven setup
-// Add this handler to make Android/iOS/Windows declare "online":
 app.get('/generate_204',        (_req, res) => res.sendStatus(204));
 app.get('/hotspot-detect.html', (_req, res) => res.sendStatus(204));
-app.get('/ncsi.txt',            (_req, res) => res.send('Microsoft NCSI'));
-app.get('/connecttest.txt',     (_req, res) => res.send('Microsoft Connect Test'));
+app.get('/ncsi.txt',            (_req, res) => res.type('text/plain').send('Microsoft NCSI'));
+app.get('/connecttest.txt',     (_req, res) => res.type('text/plain').send('Microsoft Connect Test'));
 ```
+
+No extra configuration is required; the routes are active as soon as the
+backend starts.
 
 ---
 
@@ -109,9 +111,12 @@ a few seconds.  Raise this value to survive a full handoff:
 ```
 
 The **handoff-buffer.js** module (15 s grace window) works in tandem with this
-setting: even if MikroTik removes the client during a handoff, the reconciliation
-loop will re-provision the session within the next tick — and extend the
-`end_time` to compensate for the lost time.
+setting: if MikroTik removes the client during a handoff, the Zero-Drift
+reconciliation loop will detect the missing session on the next reconciliation
+cycle (every 60 s by default) and re-provision it, extending `end_time` to
+compensate for the lost time.  For tighter recovery, reduce `reconcileIntervalMs`
+in `config/router.json` (e.g. to `15000` to match the handoff window) — note
+this increases MikroTik API call frequency accordingly.
 
 ---
 

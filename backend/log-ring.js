@@ -33,12 +33,13 @@ let   _count   = 0;   // number of valid entries currently stored
 let   _pending = 0;   // entries added since the last flush
 
 // ── Telemetry ─────────────────────────────────────────────────────────────────
-let _totalEvents    = 0;
-let _totalEvictions = 0;
-let _flushCount     = 0;
-let _lastFlushMs    = 0;
-let _lastFlushAt    = null;
-let _timer          = null;
+let _totalEvents        = 0;
+let _totalEvictions     = 0;
+let _droppedBeforeFlush = 0;  // events pushed but evicted before they were flushed
+let _flushCount         = 0;
+let _lastFlushMs        = 0;
+let _lastFlushAt        = null;
+let _timer              = null;
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -46,6 +47,10 @@ function _write(record) {
   if (_count === CAPACITY) {
     // Ring is full — the oldest slot (at _head) gets overwritten (FIFO eviction).
     _totalEvictions++;
+    // If there are still un-flushed events pending and this eviction replaces
+    // one of them, those events are permanently lost.  Track the count so the
+    // metrics endpoint can surface this under burst load.
+    if (_pending > 0) _droppedBeforeFlush++;
   } else {
     _count++;
   }
@@ -80,14 +85,23 @@ function push(entry) {
 function flush() {
   if (_pending === 0) return;
 
-  const t0        = Date.now();
-  const batchSize = _pending;
+  const t0 = Date.now();
+  // Under burst load _pending can exceed _count (ring evicted old un-flushed
+  // entries).  Cap to _count so snapshot() never over-reads.
+  const batchSize = Math.min(_pending, _count);
   const entries   = snapshot(batchSize);
 
   if (entries.length > 0) {
     const lines = entries.map(e => {
-      const meta = e.meta ? ' ' + JSON.stringify(e.meta) : '';
-      return `[${e.ts}] [${e.level.toUpperCase().padEnd(5)}] [${e.module}] ${e.msg}${meta}`;
+      let metaStr = '';
+      if (e.meta !== undefined) {
+        try {
+          metaStr = ' ' + JSON.stringify(e.meta);
+        } catch (_err) {
+          metaStr = ' [meta serialization error]';
+        }
+      }
+      return `[${e.ts}] [${e.level.toUpperCase().padEnd(5)}] [${e.module}] ${e.msg}${metaStr}`;
     });
     process.stdout.write(lines.join('\n') + '\n');
   }
@@ -126,15 +140,16 @@ function snapshot(n) {
  */
 function metrics() {
   return {
-    capacity:        CAPACITY,
-    currentDepth:    _count,
-    pendingFlush:    _pending,
-    flushIntervalMs: FLUSH_INTERVAL,
-    totalEvents:     _totalEvents,
-    totalEvictions:  _totalEvictions,
-    flushCount:      _flushCount,
-    lastFlushMs:     _lastFlushMs,
-    lastFlushAt:     _lastFlushAt,
+    capacity:           CAPACITY,
+    currentDepth:       _count,
+    pendingFlush:       _pending,
+    flushIntervalMs:    FLUSH_INTERVAL,
+    totalEvents:        _totalEvents,
+    totalEvictions:     _totalEvictions,
+    droppedBeforeFlush: _droppedBeforeFlush,
+    flushCount:         _flushCount,
+    lastFlushMs:        _lastFlushMs,
+    lastFlushAt:        _lastFlushAt,
   };
 }
 

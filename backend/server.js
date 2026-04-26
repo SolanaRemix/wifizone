@@ -104,6 +104,18 @@ app.get('/', (_req, res) => res.redirect(302, '/dashboard.html'));
 app.use(express.static(path.join(__dirname, '..', 'admin-panel')));
 app.use('/portal', express.static(path.join(__dirname, '..', 'frontend')));
 
+// ── Captive-portal connectivity-probe interceptors ────────────────────────────
+// Client OSes (Android, iOS, Windows, macOS) issue background HTTP probes to
+// detect internet access.  During a Starlink satellite handoff these probes
+// fail and the OS declares the network offline, causing "no internet" banners
+// even for users with a valid paid session.
+// Serving local 204/200 responses makes the OS consider the network "online"
+// throughout the handoff window.  See docs/starlink-dns-resilience.md §4.
+app.get('/generate_204',        (_req, res) => res.sendStatus(204));
+app.get('/hotspot-detect.html', (_req, res) => res.sendStatus(204));
+app.get('/ncsi.txt',            (_req, res) => res.type('text/plain').send('Microsoft NCSI'));
+app.get('/connecttest.txt',     (_req, res) => res.type('text/plain').send('Microsoft Connect Test'));
+
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute

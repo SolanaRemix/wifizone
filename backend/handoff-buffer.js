@@ -25,6 +25,10 @@ const { loadConfig } = require('./config-loader');
 
 const _cfg              = loadConfig('router');
 const HANDOFF_BUFFER_MS = _cfg.handoffBufferMs || 15000;
+// Entries unseen for longer than STALE_TTL_MS are pruned automatically during
+// seen()/isInBuffer() calls to prevent unbounded memory growth on edge hardware.
+// Default: 24 hours — long enough to span a normal overnight low-traffic window.
+const STALE_TTL_MS      = 24 * 60 * 60 * 1000;
 
 // Map<normalised-mac, { lastSeen: number, handoffCount: number }>
 const _seen = new Map();
@@ -47,7 +51,15 @@ let _confirmedLosses = 0;   // MACs that exceeded the buffer window
 function seen(mac) {
   const key = mac.toLowerCase();
   const now = Date.now();
+
+  // Opportunistically prune stale entries to bound memory on edge hardware.
+  // Only prune the entry being looked up (O(1) — no full-map scan per call).
   const entry = _seen.get(key);
+  if (entry && (now - entry.lastSeen) > STALE_TTL_MS) {
+    _seen.delete(key);
+    _seen.set(key, { lastSeen: now, handoffCount: 0 });
+    return { wasHandoff: false, downMs: 0 };
+  }
 
   if (!entry) {
     _seen.set(key, { lastSeen: now, handoffCount: 0 });
@@ -80,7 +92,13 @@ function seen(mac) {
 function isInBuffer(mac) {
   const entry = _seen.get(mac.toLowerCase());
   if (!entry) return false;
-  return (Date.now() - entry.lastSeen) < HANDOFF_BUFFER_MS;
+  const age = Date.now() - entry.lastSeen;
+  // Prune stale entry rather than treating it as still buffered.
+  if (age > STALE_TTL_MS) {
+    _seen.delete(mac.toLowerCase());
+    return false;
+  }
+  return age < HANDOFF_BUFFER_MS;
 }
 
 /**
