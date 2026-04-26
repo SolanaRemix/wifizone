@@ -26,5 +26,12 @@
     "latencyMs": 150,
     "jitterMs": 30
   },
-  "autopilotIntervalMs": 30000
+  "autopilotIntervalMs": 30000,
+  "reconcileIntervalMs": 60000,
+  "handoffBufferMs": 15000,
+  "presencePollMs": 5000,
+  "logRing": {
+    "capacityEntries": 500,
+    "flushIntervalMs": 5000
+  }
 }

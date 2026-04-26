@@ -14,6 +14,8 @@
  *   GET  /api/config/thresholds       — autopilot threshold config for dashboard
  *   GET  /api/hotspot/users           — live active sessions from MikroTik
  *   GET  /api/session/:id/status      — current status of a session (for client polling)
+ *   GET  /api/logs                    — recent structured log entries (ring buffer)
+ *   GET  /api/sync/stats              — Zero-Drift firewall-sync + handoff-buffer metrics
  *
  * WebSocket events broadcast to admin-panel:
  *   { type: 'SESSION_UNLOCK', session }
@@ -32,6 +34,9 @@ const rateLimit  = require('express-rate-limit');
 const mikrotik      = require('./mikrotik');
 const starlinkMod   = require('./starlink');
 const autopilot     = require('./autopilot');
+const firewallSync  = require('./firewall-sync');
+const handoffBuffer = require('./handoff-buffer');
+const logRing       = require('./log-ring');
 const { loadConfig } = require('./config-loader');
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -98,6 +103,18 @@ app.use(bodyParser.json({
 app.get('/', (_req, res) => res.redirect(302, '/dashboard.html'));
 app.use(express.static(path.join(__dirname, '..', 'admin-panel')));
 app.use('/portal', express.static(path.join(__dirname, '..', 'frontend')));
+
+// ── Captive-portal connectivity-probe interceptors ────────────────────────────
+// Client OSes (Android, iOS, Windows, macOS) issue background HTTP probes to
+// detect internet access.  During a Starlink satellite handoff these probes
+// fail and the OS declares the network offline, causing "no internet" banners
+// even for users with a valid paid session.
+// Serving local 204/200 responses makes the OS consider the network "online"
+// throughout the handoff window.  See docs/starlink-dns-resilience.md §4.
+app.get('/generate_204',        (_req, res) => res.sendStatus(204));
+app.get('/hotspot-detect.html', (_req, res) => res.sendStatus(204));
+app.get('/ncsi.txt',            (_req, res) => res.type('text/plain').send('Microsoft NCSI'));
+app.get('/connecttest.txt',     (_req, res) => res.type('text/plain').send('Microsoft Connect Test'));
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 const apiLimiter = rateLimit({
@@ -527,6 +544,22 @@ app.get('/api/stats', requireOperatorAuth, apiLimiter, async (_req, res) => {
   }
 });
 
+// ── REST: Log ring (recent structured log entries) ────────────────────────────
+app.get('/api/logs', requireOperatorAuth, apiLimiter, (req, res) => {
+  const n       = parseInt(req.query.n, 10);
+  const entries = logRing.snapshot(Number.isFinite(n) && n > 0 ? n : 200);
+  res.json({ entries, metrics: logRing.metrics() });
+});
+
+// ── REST: Firewall sync + handoff buffer stats ────────────────────────────────
+app.get('/api/sync/stats', requireOperatorAuth, apiLimiter, (_req, res) => {
+  res.json({
+    firewallSync:  firewallSync.stats(),
+    handoffBuffer: handoffBuffer.metrics(),
+    logRing:       logRing.metrics(),
+  });
+});
+
 // ── Telemetry events → broadcast ─────────────────────────────────────────────
 starlinkMod.on('telemetry', data => broadcast({ type: 'TELEMETRY', data }));
 
@@ -535,6 +568,10 @@ server.listen(PORT, () => {
   console.log(`[WIFIZONE ELITE] Backend listening on http://0.0.0.0:${PORT}`);
   starlinkMod.startPolling();
   autopilot.start();
+  // init() injects the DB pool into firewall-sync; called here so the pool
+  // is fully configured before background reconciliation begins.
+  firewallSync.init(db);
+  firewallSync.start();
 });
 
-module.exports = { app, server, broadcast, db };
+module.exports = { app, server, broadcast, db, firewallSync, handoffBuffer, logRing };
