@@ -1,0 +1,18 @@
+{
+  "interfaces": [
+    {
+      "name": "Globe LTE 1",
+      "interface": "ether1",
+      "type": "lte",
+      "provider": "Globe",
+      "priority": 1
+    },
+    {
+      "name": "Globe LTE 2",
+      "interface": "ether2",
+      "type": "lte",
+      "provider": "Globe",
+      "priority": 2
+    }
+  ]
+}

@@ -74,6 +74,47 @@
     </div>
   </div>
 
+  <!-- ── Multi-WAN Status ── -->
+  <div class="card" id="wan-card">
+    <div class="card-header">
+      <h2>🌐 Internet Sources</h2>
+      <button class="refresh-btn" id="refresh-wan" title="Refresh WAN">↻</button>
+    </div>
+    <div id="wan-list">
+      <p class="ts-line">Loading…</p>
+    </div>
+  </div>
+
+  <!-- ── Pending Sessions (operator activation) ── -->
+  <div class="card wide" id="pending-card">
+    <div class="card-header">
+      <h2>⏳ Pending Payments — Waiting for Activation</h2>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="badge" id="pending-count">0</span>
+        <button class="refresh-btn" id="refresh-pending" title="Refresh">↻ Refresh</button>
+      </div>
+    </div>
+    <p class="ts-line" id="pending-ts">Click Refresh to check.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Session</th>
+            <th>MAC Address</th>
+            <th>Plan</th>
+            <th>Price</th>
+            <th>Reference #</th>
+            <th>Submitted At</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="pending-tbody">
+          <tr><td colspan="7" class="empty-row">No pending payments.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- ── Active Sessions (from DB via WebSocket) ── -->
   <div class="card wide">
     <div class="card-header">
@@ -121,6 +162,52 @@
         </thead>
         <tbody id="hotspot-tbody">
           <tr><td colspan="6" class="empty-row">Click Refresh to load live users.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Plans Management ── -->
+  <div class="card wide" id="plans-card">
+    <div class="card-header">
+      <h2>🎟️ Voucher Plans</h2>
+      <button class="refresh-btn" id="refresh-plans">↻ Refresh</button>
+    </div>
+
+    <!-- Add Plan Form -->
+    <form id="add-plan-form" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:flex-end;">
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <label for="plan-name" style="font-size:0.65rem;color:var(--muted);letter-spacing:1px;">PLAN NAME</label>
+        <input id="plan-name" type="text" placeholder="e.g. 4 Hours" maxlength="50"
+          style="padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:0.85rem;outline:none;width:160px;" />
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <label for="plan-minutes" style="font-size:0.65rem;color:var(--muted);letter-spacing:1px;">DURATION (MIN)</label>
+        <input id="plan-minutes" type="number" placeholder="e.g. 240" min="1"
+          style="padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:0.85rem;outline:none;width:130px;" />
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <label for="plan-price" style="font-size:0.65rem;color:var(--muted);letter-spacing:1px;">PRICE (₱)</label>
+        <input id="plan-price" type="number" placeholder="e.g. 25" min="1" step="0.01"
+          style="padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:0.85rem;outline:none;width:120px;" />
+      </div>
+      <button type="submit" class="refresh-btn" style="padding:8px 18px;border-color:var(--green);color:var(--green);">+ Add Plan</button>
+      <span id="plan-form-msg" style="font-size:0.75rem;color:var(--muted);align-self:center;"></span>
+    </form>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Duration</th>
+            <th>Price</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="plans-tbody">
+          <tr><td colspan="5" class="empty-row">Loading plans…</td></tr>
         </tbody>
       </table>
     </div>

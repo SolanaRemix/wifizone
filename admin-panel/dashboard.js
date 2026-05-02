@@ -50,6 +50,22 @@
 
   const clockEl       = document.getElementById('clock');
 
+  // Pending sessions elements
+  const pendingTbody  = document.getElementById('pending-tbody');
+  const pendingCount  = document.getElementById('pending-count');
+  const pendingTs     = document.getElementById('pending-ts');
+  const refreshPending = document.getElementById('refresh-pending');
+
+  // Plans elements
+  const plansTbody    = document.getElementById('plans-tbody');
+  const refreshPlans  = document.getElementById('refresh-plans');
+  const addPlanForm   = document.getElementById('add-plan-form');
+  const planFormMsg   = document.getElementById('plan-form-msg');
+
+  // WAN elements
+  const wanList       = document.getElementById('wan-list');
+  const refreshWan    = document.getElementById('refresh-wan');
+
   let ws;
   let pingTimer;
   let sessions = [];
@@ -158,6 +174,8 @@
     });
     if (sessions.length > 50) sessions.length = 50;
     renderSessions();
+    // Refresh pending list since an activation may have just happened
+    refreshPendingSessions();
   }
 
   function renderSessions() {
@@ -253,6 +271,274 @@
   // Auto-refresh hotspot users every 30 s
   setInterval(refreshHotspotUsers, HOTSPOT_AUTO_REFRESH_MS);
 
+  // ── Pending Sessions ───────────────────────────────────────────────────────
+  async function refreshPendingSessions() {
+    if (refreshPending) refreshPending.disabled = true;
+    try {
+      const res  = await fetch('/api/sessions/pending', { headers: getAuthHeaders() });
+      if (res.status === 401) { promptToken(); return; }
+      const rows = await res.json();
+
+      pendingCount.textContent = Array.isArray(rows) ? rows.length : '0';
+      pendingTs.textContent    = `Last checked: ${new Date().toLocaleTimeString()} · ${Array.isArray(rows) ? rows.length : 0} pending`;
+      pendingTbody.innerHTML   = '';
+
+      if (!Array.isArray(rows) || rows.length === 0) {
+        pendingTbody.innerHTML = '<tr><td colspan="7" class="empty-row">No pending payments.</td></tr>';
+        return;
+      }
+
+      rows.forEach(row => {
+        const tr = document.createElement('tr');
+
+        const cells = [
+          '#' + row.id,
+          row.mac_address,
+          row.plan_name,
+          '₱' + parseFloat(row.price_pesos).toFixed(2),
+          row.reference_txn,
+          new Date(row.start_time).toLocaleString(),
+        ];
+        cells.forEach(text => {
+          const td = document.createElement('td');
+          td.textContent = text || '—';
+          tr.appendChild(td);
+        });
+
+        // Activate button
+        const tdBtn = document.createElement('td');
+        const btn   = document.createElement('button');
+        btn.className   = 'refresh-btn';
+        btn.textContent = '✔ Activate';
+        btn.style.borderColor = 'var(--green)';
+        btn.style.color       = 'var(--green)';
+        btn.addEventListener('click', () => activateSession(row.id, row.reference_txn, btn));
+        tdBtn.appendChild(btn);
+        tr.appendChild(tdBtn);
+
+        pendingTbody.appendChild(tr);
+      });
+    } catch (err) {
+      pendingTs.textContent  = `Error: ${err.message}`;
+      pendingTbody.innerHTML = '<tr><td colspan="7" class="empty-row" style="color:var(--red);">Failed to load pending sessions.</td></tr>';
+    } finally {
+      if (refreshPending) refreshPending.disabled = false;
+    }
+  }
+
+  async function activateSession(sessionId, txnRef, btn) {
+    if (!txnRef) {
+      alert('No reference number found for this session.');
+      return;
+    }
+    if (!confirm(`Activate session #${sessionId} with reference: ${txnRef}?`)) return;
+    btn.disabled    = true;
+    btn.textContent = '…';
+
+    try {
+      const res  = await fetch(`/api/session/${sessionId}/activate`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body:    JSON.stringify({ txn_id: txnRef }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`Activation failed: ${data.error}`);
+        btn.disabled    = false;
+        btn.textContent = '✔ Activate';
+      } else {
+        btn.textContent = '✅ Done';
+        // Refresh pending list after short delay
+        setTimeout(refreshPendingSessions, 800);
+      }
+    } catch (err) {
+      alert(`Network error: ${err.message}`);
+      btn.disabled    = false;
+      btn.textContent = '✔ Activate';
+    }
+  }
+
+  if (refreshPending) refreshPending.addEventListener('click', refreshPendingSessions);
+  // Auto-refresh pending every 30 s
+  setInterval(refreshPendingSessions, 30000);
+
+  // ── Plans Management ───────────────────────────────────────────────────────
+  const MINS_PER_MONTH = 43200;
+  const MINS_PER_WEEK  = 10080;
+  const MINS_PER_DAY   = 1440;
+  const MINS_PER_HOUR  = 60;
+
+  function fmtDuration(mins) {
+    if (mins >= MINS_PER_MONTH) return `${Math.round(mins / MINS_PER_MONTH)} Month`;
+    if (mins >= MINS_PER_WEEK)  return `${Math.round(mins / MINS_PER_WEEK)} Week(s)`;
+    if (mins >= MINS_PER_DAY)   return `${Math.round(mins / MINS_PER_DAY)} Day(s)`;
+    if (mins >= MINS_PER_HOUR)  return `${Math.round(mins / MINS_PER_HOUR)} Hour(s)`;
+    return `${mins} Min`;
+  }
+
+  async function loadPlans() {
+    try {
+      const res   = await fetch('/api/plans', { headers: getAuthHeaders() });
+      const plans = await res.json();
+      plansTbody.innerHTML = '';
+
+      if (!Array.isArray(plans) || plans.length === 0) {
+        plansTbody.innerHTML = '<tr><td colspan="5" class="empty-row">No plans configured.</td></tr>';
+        return;
+      }
+
+      plans.forEach(plan => {
+        const tr = document.createElement('tr');
+        [
+          String(plan.id),
+          plan.name,
+          fmtDuration(plan.duration_minutes),
+          '₱' + parseFloat(plan.price_pesos).toFixed(2),
+        ].forEach(text => {
+          const td = document.createElement('td');
+          td.textContent = text;
+          tr.appendChild(td);
+        });
+
+        // Delete button
+        const tdBtn = document.createElement('td');
+        const delBtn = document.createElement('button');
+        delBtn.className   = 'refresh-btn';
+        delBtn.textContent = '✕ Delete';
+        delBtn.style.borderColor = 'var(--red)';
+        delBtn.style.color       = 'var(--red)';
+        delBtn.addEventListener('click', () => deletePlan(plan.id, plan.name, delBtn));
+        tdBtn.appendChild(delBtn);
+        tr.appendChild(tdBtn);
+
+        plansTbody.appendChild(tr);
+      });
+    } catch (err) {
+      plansTbody.innerHTML = `<tr><td colspan="5" class="empty-row" style="color:var(--red);">Error: ${err.message}</td></tr>`;
+    }
+  }
+
+  async function deletePlan(planId, planName, btn) {
+    if (!confirm(`Delete plan "${planName}"? This cannot be undone.`)) return;
+    btn.disabled = true;
+    try {
+      const res  = await fetch(`/api/plans/${planId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`Delete failed: ${data.error}`);
+        btn.disabled = false;
+      } else {
+        loadPlans();
+      }
+    } catch (err) {
+      alert(`Network error: ${err.message}`);
+      btn.disabled = false;
+    }
+  }
+
+  if (addPlanForm) {
+    addPlanForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      planFormMsg.textContent = '';
+      const name    = document.getElementById('plan-name').value.trim();
+      const minutes = parseInt(document.getElementById('plan-minutes').value, 10);
+      const price   = parseFloat(document.getElementById('plan-price').value);
+
+      if (!name || isNaN(minutes) || minutes <= 0 || isNaN(price) || price <= 0) {
+        planFormMsg.textContent = '⚠ Fill in all fields correctly.';
+        planFormMsg.style.color = 'var(--red)';
+        return;
+      }
+
+      try {
+        const res  = await fetch('/api/plans', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body:    JSON.stringify({ name, duration_minutes: minutes, price_pesos: price }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          planFormMsg.textContent = `⚠ ${data.error}`;
+          planFormMsg.style.color = 'var(--red)';
+        } else {
+          planFormMsg.textContent = '✅ Plan added!';
+          planFormMsg.style.color = 'var(--green)';
+          addPlanForm.reset();
+          loadPlans();
+          setTimeout(() => { planFormMsg.textContent = ''; }, 3000);
+        }
+      } catch (err) {
+        planFormMsg.textContent = `⚠ Network error: ${err.message}`;
+        planFormMsg.style.color = 'var(--red)';
+      }
+    });
+  }
+
+  if (refreshPlans) refreshPlans.addEventListener('click', loadPlans);
+
+  // ── Multi-WAN Status ───────────────────────────────────────────────────────
+  async function loadWanStatus() {
+    if (refreshWan) refreshWan.disabled = true;
+    wanList.innerHTML = '<p class="ts-line">Loading…</p>';
+    try {
+      const res  = await fetch('/api/wan/status', { headers: getAuthHeaders() });
+      if (res.status === 401) { promptToken(); return; }
+      const ifaces = await res.json();
+
+      if (!Array.isArray(ifaces) || ifaces.length === 0) {
+        wanList.innerHTML = '<p class="ts-line">No WAN interfaces configured.</p>';
+        return;
+      }
+
+      wanList.innerHTML = '';
+      ifaces.forEach(iface => {
+        const statusColor = iface.running === null ? 'var(--muted)'
+          : iface.running ? 'var(--green)' : 'var(--red)';
+        const statusText  = iface.running === null ? '— UNKNOWN'
+          : iface.running ? '● ONLINE' : '○ OFFLINE';
+
+        const item = document.createElement('div');
+        item.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:0.82rem;';
+        item.innerHTML =
+          `<span style="color:var(--text);">` +
+            `<span style="color:var(--cyan);">${escHtml(iface.name)}</span> ` +
+            `<span style="color:var(--muted);font-size:0.72rem;">(${escHtml(iface.interface)})</span>` +
+          `</span>` +
+          `<span style="color:${statusColor};font-size:0.78rem;letter-spacing:1px;">${statusText}</span>`;
+        wanList.appendChild(item);
+
+        if (iface.running) {
+          const stats = document.createElement('div');
+          stats.style.cssText = 'display:flex;gap:16px;padding:2px 0 6px 0;font-size:0.72rem;color:var(--muted);';
+          stats.innerHTML =
+            `<span>↓ ${fmtBytes(iface.rxBytes)}</span>` +
+            `<span>↑ ${fmtBytes(iface.txBytes)}</span>` +
+            `<span style="color:var(--muted);">${escHtml(iface.provider || '')}</span>`;
+          wanList.appendChild(stats);
+        }
+      });
+    } catch (err) {
+      wanList.innerHTML = `<p class="ts-line" style="color:var(--red);">Error: ${err.message}</p>`;
+    } finally {
+      if (refreshWan) refreshWan.disabled = false;
+    }
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g,  '&amp;')
+      .replace(/</g,  '&lt;')
+      .replace(/>/g,  '&gt;')
+      .replace(/"/g,  '&quot;');
+  }
+
+  if (refreshWan) refreshWan.addEventListener('click', loadWanStatus);
+  // Auto-refresh WAN every 60 s
+  setInterval(loadWanStatus, 60000);
+
   // ── Init ───────────────────────────────────────────────────────────────────
   function promptToken() {
     const tok = window.prompt('Enter OPERATOR_API_TOKEN to access dashboard:');
@@ -274,6 +560,9 @@
     .then(d => { if (d) renderStats(d); })
     .catch(() => {});
 
-  // Initial hotspot load
+  // Initial loads
   refreshHotspotUsers();
+  refreshPendingSessions();
+  loadPlans();
+  loadWanStatus();
 })();

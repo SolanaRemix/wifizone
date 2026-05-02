@@ -233,4 +233,40 @@ async function setPerUserSpeed(ip, maxLimit) {
   }
 }
 
-module.exports = { addUser, removeUser, syncUsers, setPerUserSpeed, secondsToUptime };
+/**
+ * Pull the status of all network interfaces from the router.
+ * Used by the multi-WAN dashboard panel.
+ *
+ * @returns {Promise<Array<{
+ *   name: string,
+ *   running: boolean,
+ *   disabled: boolean,
+ *   txBytes: number,
+ *   rxBytes: number
+ * }>>}
+ */
+async function getInterfaceStatus() {
+  const connection = await openConnection();
+  try {
+    const chan = connection.openChannel('iface-status');
+    const rows = await new Promise((resolve, reject) => {
+      const results = [];
+      chan.on('trap',  reject);
+      chan.on('error', reject);
+      chan.on('read',  data => results.push(data));
+      chan.on('done',  () => resolve(results));
+      chan.write(['/interface/print', '=stats='], true);
+    });
+    return rows.map(row => ({
+      name:     row['name']     || '',
+      running:  row['running']  === 'true',
+      disabled: row['disabled'] === 'true',
+      txBytes:  parseInt(row['tx-byte'] || '0', 10),
+      rxBytes:  parseInt(row['rx-byte'] || '0', 10),
+    }));
+  } finally {
+    connection.close();
+  }
+}
+
+module.exports = { addUser, removeUser, syncUsers, setPerUserSpeed, secondsToUptime, getInterfaceStatus };

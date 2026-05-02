@@ -63,6 +63,9 @@ INSERT INTO plans (name, duration_minutes, price_pesos)
 SELECT '1 Hour', 60, 10.00 WHERE NOT EXISTS (SELECT 1 FROM plans WHERE name = '1 Hour');
 
 INSERT INTO plans (name, duration_minutes, price_pesos)
+SELECT '4 Hours', 240, 25.00 WHERE NOT EXISTS (SELECT 1 FROM plans WHERE name = '4 Hours');
+
+INSERT INTO plans (name, duration_minutes, price_pesos)
 SELECT '12 Hours', 720, 50.00 WHERE NOT EXISTS (SELECT 1 FROM plans WHERE name = '12 Hours');
 
 INSERT INTO plans (name, duration_minutes, price_pesos)
