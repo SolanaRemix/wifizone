@@ -1,0 +1,5 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 128 128'>
+  <rect width='128' height='128' rx='20' fill='#0a0a1a'/>
+  <text x='64' y='50' text-anchor='middle' font-family='monospace' font-weight='bold' font-size='44' fill='#00fff5'>⚡</text>
+  <text x='64' y='92' text-anchor='middle' font-family='monospace' font-weight='bold' font-size='18' fill='#00ff88'>WiFi</text>
+</svg>

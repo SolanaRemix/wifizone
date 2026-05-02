@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS payments (
     session_id INT NOT NULL,
     txn_id VARCHAR(100) UNIQUE NOT NULL,
     amount DECIMAL(10,2) NOT NULL,
-    method ENUM('gcash','stripe') NOT NULL,
+    method ENUM('gcash','stripe','manual') NOT NULL,
     status ENUM('pending','success','failed') DEFAULT 'pending',
     paid_at TIMESTAMP,
     FOREIGN KEY (session_id) REFERENCES sessions(id)
@@ -63,6 +63,9 @@ INSERT INTO plans (name, duration_minutes, price_pesos)
 SELECT '1 Hour', 60, 10.00 WHERE NOT EXISTS (SELECT 1 FROM plans WHERE name = '1 Hour');
 
 INSERT INTO plans (name, duration_minutes, price_pesos)
+SELECT '4 Hours', 240, 25.00 WHERE NOT EXISTS (SELECT 1 FROM plans WHERE name = '4 Hours');
+
+INSERT INTO plans (name, duration_minutes, price_pesos)
 SELECT '12 Hours', 720, 50.00 WHERE NOT EXISTS (SELECT 1 FROM plans WHERE name = '12 Hours');
 
 INSERT INTO plans (name, duration_minutes, price_pesos)
@@ -78,3 +81,8 @@ SELECT '1 Month', 43200, 1000.00 WHERE NOT EXISTS (SELECT 1 FROM plans WHERE nam
 -- singleton_guard UNIQUE constraint ensures only one row can ever exist.
 INSERT INTO operator_stats (id, singleton_guard, total_clients, total_revenue)
 SELECT 1, 1, 0, 0.00 WHERE NOT EXISTS (SELECT 1 FROM operator_stats WHERE id = 1);
+
+-- Migration: add 'manual' to payments.method for existing databases.
+-- Safe to run on a fresh install too — no-op if the column definition already
+-- includes 'manual' (MySQL ignores MODIFY when the definition is unchanged).
+ALTER TABLE payments MODIFY COLUMN method ENUM('gcash','stripe','manual') NOT NULL;

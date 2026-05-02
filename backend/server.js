@@ -544,6 +544,113 @@ app.get('/api/stats', requireOperatorAuth, apiLimiter, async (_req, res) => {
   }
 });
 
+// ── REST: Plans Management (operator) ─────────────────────────────────────────
+
+// Create a new plan
+app.post('/api/plans', requireOperatorAuth, apiLimiter, async (req, res) => {
+  const { name, duration_minutes, price_pesos } = req.body;
+  if (!name || !duration_minutes || price_pesos === undefined) {
+    return res.status(400).json({ error: 'name, duration_minutes, and price_pesos are required' });
+  }
+  const mins  = parseInt(duration_minutes, 10);
+  const price = parseFloat(price_pesos);
+  if (!Number.isInteger(mins) || mins <= 0) {
+    return res.status(400).json({ error: 'duration_minutes must be a positive integer' });
+  }
+  if (!Number.isFinite(price) || price <= 0) {
+    return res.status(400).json({ error: 'price_pesos must be a positive number' });
+  }
+  const safeName = String(name).trim().substring(0, 50);
+  if (!safeName) return res.status(400).json({ error: 'name cannot be empty' });
+
+  try {
+    const [result] = await db.query(
+      'INSERT INTO plans (name, duration_minutes, price_pesos) VALUES (?, ?, ?)',
+      [safeName, mins, price]
+    );
+    const [[plan]] = await db.query('SELECT * FROM plans WHERE id = ?', [result.insertId]);
+    res.status(201).json(plan);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete a plan (only if no sessions — in any status — reference it)
+app.delete('/api/plans/:id', requireOperatorAuth, apiLimiter, async (req, res) => {
+  const planId = parseInt(req.params.id, 10);
+  if (isNaN(planId) || planId <= 0) {
+    return res.status(400).json({ error: 'Invalid plan ID' });
+  }
+  try {
+    const [[plan]] = await db.query('SELECT id FROM plans WHERE id = ?', [planId]);
+    if (!plan) return res.status(404).json({ error: 'Plan not found' });
+
+    // Block deletion when any session references this plan (active, unpaid, or expired)
+    // to preserve foreign-key integrity and historical payment records.
+    const [[hasSession]] = await db.query(
+      'SELECT 1 FROM sessions WHERE plan_id = ? LIMIT 1',
+      [planId]
+    );
+    if (hasSession) {
+      return res.status(409).json({
+        error: 'Cannot delete a plan that has been used in sessions. You can rename it instead.',
+      });
+    }
+
+    await db.query('DELETE FROM plans WHERE id = ?', [planId]);
+    res.json({ message: 'Plan deleted' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── REST: Pending Sessions (operator view) ────────────────────────────────────
+// Returns unpaid sessions that have a reference_txn submitted by the customer.
+app.get('/api/sessions/pending', requireOperatorAuth, apiLimiter, async (_req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT s.id, s.start_time, s.reference_txn, u.mac_address, p.name AS plan_name, p.price_pesos
+       FROM sessions s
+       JOIN users u ON u.id = s.user_id
+       JOIN plans p ON p.id = s.plan_id
+       WHERE s.status = 'unpaid' AND s.reference_txn IS NOT NULL AND s.reference_txn != ''
+       ORDER BY s.start_time DESC
+       LIMIT 50`
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── REST: Manual Operator Activation ─────────────────────────────────────────
+// Allows the operator to manually activate an unpaid session after verifying
+// the customer's payment reference (GCash, cash, etc.).
+app.post('/api/session/:id/activate', requireOperatorAuth, apiLimiter, async (req, res) => {
+  const sessionId = parseInt(req.params.id, 10);
+  if (isNaN(sessionId) || sessionId <= 0) {
+    return res.status(400).json({ error: 'Invalid session ID' });
+  }
+  const { txn_id } = req.body;
+  if (!txn_id || typeof txn_id !== 'string' || !txn_id.trim()) {
+    return res.status(400).json({ error: 'txn_id (transaction reference) is required' });
+  }
+  try {
+    const [[session]] = await db.query('SELECT * FROM sessions WHERE id = ?', [sessionId]);
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+    if (session.status !== 'unpaid') {
+      return res.status(409).json({ error: `Session is already ${session.status}` });
+    }
+    const [[plan]] = await db.query('SELECT * FROM plans WHERE id = ?', [session.plan_id]);
+    if (!plan) return res.status(500).json({ error: 'Plan not found' });
+
+    const result = await confirmPayment(sessionId, txn_id.trim(), parseFloat(plan.price_pesos), 'manual');
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // ── REST: Log ring (recent structured log entries) ────────────────────────────
 app.get('/api/logs', requireOperatorAuth, apiLimiter, (req, res) => {
   const n       = parseInt(req.query.n, 10);
@@ -558,6 +665,47 @@ app.get('/api/sync/stats', requireOperatorAuth, apiLimiter, (_req, res) => {
     handoffBuffer: handoffBuffer.metrics(),
     logRing:       logRing.metrics(),
   });
+});
+
+// ── REST: Multi-WAN status ────────────────────────────────────────────────────
+// Returns configured WAN interfaces and their live status from MikroTik.
+// Falls back to config-only data if the router is unreachable.
+app.get('/api/wan/status', requireOperatorAuth, apiLimiter, async (_req, res) => {
+  const wanCfg = loadConfig('wan');
+  const interfaces = Array.isArray(wanCfg.interfaces) ? wanCfg.interfaces : [];
+
+  try {
+    // Pull interface status from MikroTik
+    const liveStatus = await mikrotik.getInterfaceStatus();
+    const result = interfaces.map(iface => {
+      const live = liveStatus.find(l => l.name === iface.interface) || {};
+      return {
+        name:      iface.name,
+        interface: iface.interface,
+        type:      iface.type || 'unknown',
+        provider:  iface.provider || '',
+        priority:  iface.priority || 1,
+        running:   live.running  || false,
+        disabled:  live.disabled || false,
+        txBytes:   live.txBytes  || 0,
+        rxBytes:   live.rxBytes  || 0,
+      };
+    });
+    res.json(result);
+  } catch (_err) {
+    // Router unreachable — return config with unknown status
+    res.json(interfaces.map(iface => ({
+      name:      iface.name,
+      interface: iface.interface,
+      type:      iface.type || 'unknown',
+      provider:  iface.provider || '',
+      priority:  iface.priority || 1,
+      running:   null,
+      disabled:  null,
+      txBytes:   0,
+      rxBytes:   0,
+    })));
+  }
 });
 
 // ── Telemetry events → broadcast ─────────────────────────────────────────────
