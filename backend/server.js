@@ -575,7 +575,7 @@ app.post('/api/plans', requireOperatorAuth, apiLimiter, async (req, res) => {
   }
 });
 
-// Delete a plan (only if no active sessions are using it)
+// Delete a plan (only if no sessions — in any status — reference it)
 app.delete('/api/plans/:id', requireOperatorAuth, apiLimiter, async (req, res) => {
   const planId = parseInt(req.params.id, 10);
   if (isNaN(planId) || planId <= 0) {
@@ -585,13 +585,16 @@ app.delete('/api/plans/:id', requireOperatorAuth, apiLimiter, async (req, res) =
     const [[plan]] = await db.query('SELECT id FROM plans WHERE id = ?', [planId]);
     if (!plan) return res.status(404).json({ error: 'Plan not found' });
 
-    // Prevent deletion if active sessions are using this plan
-    const [[active]] = await db.query(
-      "SELECT id FROM sessions WHERE plan_id = ? AND status = 'active'",
+    // Block deletion when any session references this plan (active, unpaid, or expired)
+    // to preserve foreign-key integrity and historical payment records.
+    const [[hasSession]] = await db.query(
+      'SELECT 1 FROM sessions WHERE plan_id = ? LIMIT 1',
       [planId]
     );
-    if (active) {
-      return res.status(409).json({ error: 'Cannot delete plan with active sessions' });
+    if (hasSession) {
+      return res.status(409).json({
+        error: 'Cannot delete a plan that has been used in sessions. You can rename it instead.',
+      });
     }
 
     await db.query('DELETE FROM plans WHERE id = ?', [planId]);
@@ -641,7 +644,7 @@ app.post('/api/session/:id/activate', requireOperatorAuth, apiLimiter, async (re
     const [[plan]] = await db.query('SELECT * FROM plans WHERE id = ?', [session.plan_id]);
     if (!plan) return res.status(500).json({ error: 'Plan not found' });
 
-    const result = await confirmPayment(sessionId, txn_id.trim(), parseFloat(plan.price_pesos), 'gcash');
+    const result = await confirmPayment(sessionId, txn_id.trim(), parseFloat(plan.price_pesos), 'manual');
     res.json(result);
   } catch (err) {
     res.status(400).json({ error: err.message });

@@ -5,12 +5,11 @@
   "description": "Quick access to your WIFIZONE hotspot dashboard — see live stats, active users, and earnings at a glance.",
   "permissions": [
     "storage",
-    "alarms",
-    "notifications"
+    "alarms"
   ],
   "host_permissions": [
-    "http://localhost:3000/*",
-    "http://127.0.0.1:3000/*"
+    "http://*/*",
+    "https://*/*"
   ],
   "background": {
     "service_worker": "background.js"

@@ -277,6 +277,11 @@
     try {
       const res  = await fetch('/api/sessions/pending', { headers: getAuthHeaders() });
       if (res.status === 401) { promptToken(); return; }
+      if (!res.ok) {
+        pendingTs.textContent  = `Error ${res.status}: could not load pending sessions.`;
+        pendingTbody.innerHTML = '<tr><td colspan="7" class="empty-row" style="color:var(--red);">Failed to load pending sessions.</td></tr>';
+        return;
+      }
       const rows = await res.json();
 
       pendingCount.textContent = Array.isArray(rows) ? rows.length : '0';
@@ -378,7 +383,12 @@
 
   async function loadPlans() {
     try {
-      const res   = await fetch('/api/plans', { headers: getAuthHeaders() });
+      const res = await fetch('/api/plans', { headers: getAuthHeaders() });
+      if (res.status === 401) { promptToken(); return; }
+      if (!res.ok) {
+        plansTbody.innerHTML = `<tr><td colspan="5" class="empty-row" style="color:var(--red);">Error ${res.status}: failed to load plans.</td></tr>`;
+        return;
+      }
       const plans = await res.json();
       plansTbody.innerHTML = '';
 
@@ -486,6 +496,10 @@
     try {
       const res  = await fetch('/api/wan/status', { headers: getAuthHeaders() });
       if (res.status === 401) { promptToken(); return; }
+      if (!res.ok) {
+        wanList.innerHTML = `<p class="ts-line" style="color:var(--red);">Error ${res.status}: failed to load WAN status.</p>`;
+        return;
+      }
       const ifaces = await res.json();
 
       if (!Array.isArray(ifaces) || ifaces.length === 0) {

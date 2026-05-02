@@ -45,7 +45,7 @@ After payment, customers enter their reference number and their internet turns o
 | ⚡ VIP & Regular plans | Offer faster speed to customers who pay more |
 | 🔄 Auto-disconnect | Customers are automatically cut off when their time is up |
 | 🌐 Multi-modem support | Add multiple Globe, PLDT, or Starlink connections |
-| 🖥️ Works on any Windows PC | Runs smoothly on Windows 7, 10, 11, and any version |
+| 🖥️ Works on any Windows PC | Runs smoothly on Windows 10 and Windows 11 |
 | 🔌 One-Click Installer | No complicated setup — just click and it installs itself |
 | 📡 Captive Portal | Customers see your WiFi page when they connect |
 
@@ -72,17 +72,16 @@ After payment, customers enter their reference number and their internet turns o
 ## 💻 System Requirements
 
 ### Your Computer (Windows)
-- **Operating System:** Windows 7, 8, 10, or 11 *(any version works!)*
+- **Operating System:** Windows 10 or Windows 11 *(required for the installer and Node.js LTS)*
 - **RAM:** At least 2 GB
 - **Storage:** At least 500 MB free space
 - **Internet:** Must be connected to your MikroTik router
 
-### Browser (Required)
+### Browser (Recommended)
 - **Google Chrome** or **Microsoft Edge** *(recommended)*
-- You will need to install the **WIFIZONE browser extension** in Chrome or Edge
-  - The extension enables real-time WebSocket communication between the dashboard and your backend server
-  - Without it, the admin dashboard will not load or function
-  - The extension is bundled with the installer, or can be loaded manually from the `extension/` folder as an unpacked extension in Chrome/Edge developer mode
+- The **WIFIZONE browser extension** is *optional but useful* — it adds a quick-access toolbar button showing live stats and a badge alert when customers are waiting for activation
+  - It does **not** affect the admin dashboard itself (which is a normal web page accessed at `http://localhost:3000/dashboard.html`)
+  - To install: open Chrome (`chrome://extensions`) or Edge (`edge://extensions`), enable **Developer Mode**, click **Load Unpacked**, and select the `extension/` folder
 
 ### Router
 - **MikroTik router** (any model — hAP lite, RB750, hEX, or any RouterOS device)
@@ -98,28 +97,31 @@ After payment, customers enter their reference number and their internet turns o
 
 ## 🚀 One-Click Installer (for Windows)
 
-> **Great news! WIFIZONE has a One-Click Installer that works on ANY Windows computer — Windows 7, 8, 10, and Windows 11!**
+> **WIFIZONE includes a PowerShell installer that automates the setup on Windows 10 and Windows 11.**
 
-You don't need to be a programmer or IT person. Just download, click, and WIFIZONE installs itself automatically.
+You don't need to be a programmer or IT person. Just right-click the script and run it — WIFIZONE sets itself up automatically.
 
 ### What the One-Click Installer does for you:
-- ✅ Installs all required programs automatically
-- ✅ Sets up the database for you
-- ✅ Configures your system settings
-- ✅ Opens WIFIZONE and your dashboard
-- ✅ No manual typing of complicated commands
+- ✅ Installs Node.js automatically (if not already installed)
+- ✅ Runs `npm install` for all backend dependencies
+- ✅ Sets up the MySQL database
+- ✅ Copies configuration file templates
+- ✅ Creates a desktop shortcut for daily use
+- ✅ Walks you through browser extension setup step-by-step
 
-### Download & Install:
+### How to run the installer:
 
-1. **Download** the WIFIZONE installer from the [Releases page](https://github.com/SolanaRemix/wifizone/releases)
-2. **Double-click** the installer file (`wifizone-setup.exe`)
-3. **Follow the on-screen steps** — it's just like installing any regular Windows program
-4. The installer will automatically set everything up for you
-5. When done, WIFIZONE will open in your browser automatically
+1. **Make sure you have Git and MySQL installed** — see the [Step-by-Step Guide](#-step-by-step-installation-guide) below if you need help
+2. **Clone or download** this repository to your Windows PC
+3. **Open** the `scripts` folder inside the repository
+4. **Right-click** `install.ps1` → **Run with PowerShell**
+   *(or open PowerShell and run: `powershell -ExecutionPolicy Bypass -File scripts\install.ps1`)*
+5. Follow the on-screen prompts — the installer will do the rest
+6. When done, open **http://localhost:3000** in Chrome or Edge
 
 > 💡 **Tip:** If Windows asks "Do you want to allow this app to make changes?", click **Yes**. This is normal and safe.
 
-> 💡 **Tip:** Make sure to install the browser extension when prompted. The extension is included with the installer. If you need to install it manually, open **Chrome** or **Edge**, go to `chrome://extensions` (or `edge://extensions`), enable **Developer Mode**, click **Load Unpacked**, and select the `extension/` folder inside your wifizone directory.
+> 💡 **Tip:** The browser extension is *optional* — it adds a live-stats badge to your toolbar but is not required for the dashboard to work.
 
 ---
 
@@ -199,7 +201,7 @@ When asked for a password, type the MySQL password you set in Step 1.
 5. Select the `extension/` folder inside your wifizone directory
 6. The WIFIZONE extension icon will appear in your browser toolbar
 
-> ⚠️ **Important:** The browser extension is **required** for the admin dashboard to work. Without it, the dashboard will not load. If you used the One-Click Installer, this step may already be done for you automatically.
+> 💡 **Tip:** The browser extension is *optional*. The admin dashboard works normally in any browser — the extension just adds a convenient toolbar shortcut and live-stats badge.
 
 ---
 
@@ -421,11 +423,11 @@ Here are the screenshots we recommend including in your business documentation:
 **Q: Do I need to know programming to use WIFIZONE?**
 > No! WIFIZONE is designed for regular users. The One-Click Installer handles everything for you. You just need to know how to click a mouse and type simple settings.
 
-**Q: Will WIFIZONE work on my old Windows 7 laptop?**
-> Yes! WIFIZONE works on Windows 7, 8, 10, and 11. As long as your computer can connect to the internet and run a browser, WIFIZONE will work.
+**Q: Will WIFIZONE work on my old laptop?**
+> WIFIZONE requires Windows 10 or Windows 11 (Node.js LTS no longer supports older Windows versions). If your laptop runs Windows 10 or newer and can connect to the internet, WIFIZONE will work.
 
-**Q: Why do I need a browser extension?**
-> The browser extension (for Chrome or Edge) allows WIFIZONE's dashboard to communicate securely with your router. Without it, some dashboard features won't work properly. Installation only takes 30 seconds.
+**Q: Why would I use the browser extension?**
+> The browser extension (for Chrome or Edge) is an optional convenience tool. It shows live stats in your browser toolbar and alerts you with a badge when customers are waiting for activation. The main dashboard at `http://localhost:3000/dashboard.html` works without it.
 
 **Q: I don't have a MikroTik router. Can I still use WIFIZONE?**
 > WIFIZONE is designed specifically for MikroTik routers. You'll need at least a basic MikroTik router (like the hAP lite, which costs around ₱1,500–₱2,000 in the Philippines). It's a one-time investment that pays for itself quickly!

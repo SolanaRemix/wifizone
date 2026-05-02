@@ -3,7 +3,8 @@
 #               configures the server, installs the browser extension,
 #               and creates a desktop shortcut.
 #
-# Works on Windows 7, 8, 10, and Windows 11.
+# Works on Windows 10 and Windows 11.
+# (Windows 7/8 are not supported by current Node.js LTS builds.)
 # Run as Administrator for best results.
 #
 # Usage:
@@ -33,7 +34,7 @@ Write-Host "  ║      Your WiFi Sharing Business, Made Easy           ║" -For
 Write-Host "  ╚══════════════════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  This installer will set up everything you need." -ForegroundColor White
-Write-Host "  Works on Windows 7, 8, 10, and Windows 11." -ForegroundColor White
+Write-Host "  Requires Windows 10 or Windows 11." -ForegroundColor White
 Write-Host ""
 
 # ── 1. Check Node.js ──────────────────────────────────────────────────────────
@@ -43,15 +44,31 @@ if ($nodeCmd) {
     $nodeVer = & node --version 2>&1
     Write-Ok "Node.js found: $nodeVer"
 } else {
-    Write-Warn "Node.js not found. Attempting to install via winget..."
-    try {
-        winget install --id OpenJS.NodeJS.LTS --silent --accept-source-agreements --accept-package-agreements
-        # Refresh PATH
-        $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
-                    [System.Environment]::GetEnvironmentVariable('Path', 'User')
-        Write-Ok "Node.js installed successfully."
-    } catch {
-        Write-Fail "Could not auto-install Node.js."
+    # Check Windows version — winget requires Windows 10 build 1709 (major=10, build>=16299)
+    # or Windows 11. We check major version ≥ 10 and the build separately.
+    $osVersion = [System.Environment]::OSVersion.Version
+    $hasWinget = $false
+    if ($osVersion.Major -ge 10 -and $osVersion.Build -ge 16299) {
+        $hasWinget = $null -ne (Get-Command winget -ErrorAction SilentlyContinue)
+    }
+
+    if ($hasWinget) {
+        Write-Warn "Node.js not found. Installing via winget..."
+        try {
+            winget install --id OpenJS.NodeJS.LTS --silent --accept-source-agreements --accept-package-agreements
+            # Refresh PATH
+            $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
+                        [System.Environment]::GetEnvironmentVariable('Path', 'User')
+            Write-Ok "Node.js installed successfully."
+        } catch {
+            Write-Fail "winget install failed: $_"
+            Write-Host "  Please download and install Node.js manually:" -ForegroundColor Yellow
+            Write-Host "  https://nodejs.org  (LTS version)" -ForegroundColor White
+            Read-Host "Press Enter to exit"
+            exit 1
+        }
+    } else {
+        Write-Fail "Node.js not found and automatic install is not available."
         Write-Host ""
         Write-Host "  Please download and install Node.js manually from:" -ForegroundColor Yellow
         Write-Host "  https://nodejs.org  (choose the LTS version)" -ForegroundColor White
