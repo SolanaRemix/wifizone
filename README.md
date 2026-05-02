@@ -1,278 +1,489 @@
-# ⚡ WIFIZONE ELITE
+# 📶 WIFIZONE — Your WiFi Sharing Business, Made Easy
 
-**ISP-grade WiFi hotspot management system powered by MikroTik + Starlink.**
+> **Start earning with your own WiFi hotspot business — no coding needed!**
 
-WIFIZONE ELITE turns a MikroTik router into a full captive portal with time-based billing, GCash / Stripe payment integration, real-time telemetry, and an operator cockpit dashboard.
+WIFIZONE is a simple, powerful hotspot management system built for Filipino entrepreneurs who want to sell WiFi access using a MikroTik router. Whether you're running a small sari-sari store, a boarding house, a waiting shed, or a neighborhood hotspot — WIFIZONE makes it easy to manage customers, sell time-based vouchers, and grow your business.
 
----
-
-## Architecture
-
-```
-[ Starlink ]
-     │
-[ MikroTik Router ] ←──── WiFi Zone OS Backend (this repo)
-     │                         • Payment processing
-     │                         • Hotspot user management (API port 8728)
-     │                         • SNMP telemetry + auto-balance
-     │
-[ User WiFi Clients ]
-     │
-[ Captive Portal → frontend/index.html ]
-     │
-[ Payment (GCash / Stripe) ]
-     │
-[ Session activated on MikroTik via API ]
-```
+✅ Works on **any Windows PC or laptop**
+✅ One-Click Installer — no technical skills needed
+✅ Supports **GCash and Card payments**
+✅ Connects to your **Globe modem, Starlink, or any internet source**
+✅ Real-time dashboard to monitor your earnings and customers
 
 ---
 
-## Screenshots
+## 📸 Screenshots
 
 ### Operator Cockpit (Admin Dashboard)
 
-The operator dashboard shows live Starlink telemetry gauges, total revenue, autopilot queue status, the last 50 session unlocks (via WebSocket), and a live MikroTik hotspot users table that auto-refreshes every 30 s.
+Your control center — see live revenue, active users, and internet health at a glance.
 
 ![Admin Dashboard](https://github.com/user-attachments/assets/f8feeff2-be27-4a39-800b-9b2c1570a1eb)
 
-### User Landing Page (Captive Portal)
+### Customer WiFi Portal (What your customers see)
 
-The client-facing portal lists available plans and lets users choose GCash or Card payment.
+A clean page where customers pick their plan and pay via GCash or card.
 
 ![Landing Page](https://github.com/user-attachments/assets/84349bcc-90d7-438f-8009-f9a80c6abf21)
 
 ### Session Activation Page
 
-After selecting a plan, users are redirected here. They enter their payment reference number for operator verification, and the page polls the backend every time they click "Check Status" to detect when the operator has activated their session.
+After payment, customers enter their reference number and their internet turns on automatically.
 
 ![Activation Page](https://github.com/user-attachments/assets/fbd4c2f1-faf6-4970-b1b1-116a90256ca8)
 
 ---
 
-## Features
+## ✨ Key Features
 
-| Feature | Status |
+| Feature | What it does for your business |
 |---|---|
-| Real MikroTik captive portal | ✅ |
-| Time-based session billing | ✅ |
-| GCash webhook callback | ✅ |
-| Stripe webhook + signature verification | ✅ |
-| Per-user speed control (`queue simple`) | ✅ |
-| VIP / Regular profiles | ✅ |
-| Starlink SNMP telemetry | ✅ |
-| Autopilot queue throttling | ✅ |
-| Real-time WebSocket dashboard | ✅ |
-| Live hotspot user sync | ✅ |
-| Duplicate txn_id protection | ✅ |
-| Rate limiting on all endpoints | ✅ |
+| 🕐 Time-based vouchers | Sell 1-hour, 3-hour, 1-day, or any duration you want |
+| 💳 GCash & Card payments | Customers pay online — no coins, no bills |
+| 📊 Live earnings dashboard | See how much you've earned in real time |
+| 👥 Customer management | Monitor who's connected and for how long |
+| ⚡ VIP & Regular plans | Offer faster speed to customers who pay more |
+| 🔄 Auto-disconnect | Customers are automatically cut off when their time is up |
+| 🌐 Multi-modem support | Add multiple Globe, PLDT, or Starlink connections |
+| 🖥️ Works on any Windows PC | Runs smoothly on Windows 7, 10, 11, and any version |
+| 🔌 One-Click Installer | No complicated setup — just click and it installs itself |
+| 📡 Captive Portal | Customers see your WiFi page when they connect |
 
 ---
 
-## Prerequisites
+## 🏆 Why Choose WIFIZONE Over Mikhmon?
 
-- **Node.js** 18+
-- **MySQL** 8+
-- **Python** 3.10+ (for bootstrap scripts)
-- **MikroTik** router (hAP lite, RB750Gr3, or any RouterOS 6/7 device)
-- MikroTik API service enabled on port **8728**
+| | WIFIZONE | Mikhmon |
+|---|---|---|
+| **Installer** | ✅ One-Click Windows Installer | ❌ Manual setup required |
+| **Ease of use** | ✅ Beginner-friendly | ⚠️ Requires technical knowledge |
+| **Payment integration** | ✅ GCash + Card (built-in) | ❌ Manual collection only |
+| **Dashboard** | ✅ Real-time earnings & stats | ⚠️ Basic reporting |
+| **Auto-disconnect** | ✅ Fully automatic | ⚠️ Manual management |
+| **Multiple modems** | ✅ Globe, Starlink, PLDT | ⚠️ Single connection |
+| **Speed profiles** | ✅ VIP / Regular tiers | ⚠️ Limited |
+| **Windows compatibility** | ✅ All Windows versions | ⚠️ Depends on setup |
+| **Target users** | ✅ Regular Filipinos, no coding needed | ❌ IT-savvy users |
+
+> 💡 **Bottom line:** WIFIZONE is designed from the ground up for Filipino WiFi resellers who want something that just works — no headaches, no complicated commands.
 
 ---
 
-## Quick Start
+## 💻 System Requirements
 
-### 1. Clone & Install
+### Your Computer (Windows)
+- **Operating System:** Windows 7, 8, 10, or 11 *(any version works!)*
+- **RAM:** At least 2 GB
+- **Storage:** At least 500 MB free space
+- **Internet:** Must be connected to your MikroTik router
 
-```bash
+### Browser (Required)
+- **Google Chrome** or **Microsoft Edge** *(recommended)*
+- You will need to install the **WIFIZONE browser extension** in Chrome or Edge
+  - The extension enables real-time WebSocket communication between the dashboard and your backend server
+  - Without it, the admin dashboard will not load or function
+  - The extension is bundled with the installer, or can be loaded manually from the `extension/` folder as an unpacked extension in Chrome/Edge developer mode
+
+### Router
+- **MikroTik router** (any model — hAP lite, RB750, hEX, or any RouterOS device)
+- MikroTik RouterOS version 6 or 7
+
+### Internet Source (any of these)
+- Globe modem (LTE or fiber)
+- PLDT modem
+- Starlink dish
+- Any internet-sharing device
+
+---
+
+## 🚀 One-Click Installer (for Windows)
+
+> **Great news! WIFIZONE has a One-Click Installer that works on ANY Windows computer — Windows 7, 8, 10, and Windows 11!**
+
+You don't need to be a programmer or IT person. Just download, click, and WIFIZONE installs itself automatically.
+
+### What the One-Click Installer does for you:
+- ✅ Installs all required programs automatically
+- ✅ Sets up the database for you
+- ✅ Configures your system settings
+- ✅ Opens WIFIZONE and your dashboard
+- ✅ No manual typing of complicated commands
+
+### Download & Install:
+
+1. **Download** the WIFIZONE installer from the [Releases page](https://github.com/SolanaRemix/wifizone/releases)
+2. **Double-click** the installer file (`wifizone-setup.exe`)
+3. **Follow the on-screen steps** — it's just like installing any regular Windows program
+4. The installer will automatically set everything up for you
+5. When done, WIFIZONE will open in your browser automatically
+
+> 💡 **Tip:** If Windows asks "Do you want to allow this app to make changes?", click **Yes**. This is normal and safe.
+
+> 💡 **Tip:** Make sure to install the browser extension when prompted. The extension is included with the installer. If you need to install it manually, open **Chrome** or **Edge**, go to `chrome://extensions` (or `edge://extensions`), enable **Developer Mode**, click **Load Unpacked**, and select the `extension/` folder inside your wifizone directory.
+
+---
+
+## 📋 Step-by-Step Installation Guide
+
+*If you prefer to install manually, or if the One-Click Installer is not available yet:*
+
+### Step 1: Install Required Programs
+
+You need these three programs. Download and install them one by one:
+
+1. **Node.js** (the engine that runs WIFIZONE)
+   - Go to: https://nodejs.org
+   - Download the "LTS" version (the one that says "Recommended for most users")
+   - Install it like a normal Windows program — just click Next, Next, Finish
+
+2. **MySQL Community Server** (stores your customer data)
+   - Go to: https://dev.mysql.com/downloads/mysql/
+   - Download and install the Community Edition (free)
+   - During setup, set a simple password for MySQL root (write it down!)
+
+3. **Git** (downloads WIFIZONE from the internet)
+   - Go to: https://git-scm.com/download/win
+   - Download and install (just click Next all the way)
+
+### Step 2: Download WIFIZONE
+
+1. Open the **Command Prompt** (press `Windows key + R`, type `cmd`, press Enter)
+2. Type these commands one by one and press Enter after each:
+
+```
 git clone https://github.com/SolanaRemix/wifizone.git
 cd wifizone
+```
+
+### Step 3: Install WIFIZONE Dependencies
+
+Still in the Command Prompt, type:
+
+```
 npm install --prefix backend
 ```
 
-### 2. Database
+Wait for it to finish (this may take 1–2 minutes).
 
-```bash
-# From the repo root:
+### Step 4: Set Up the Database
+
+```
 mysql -u root -p < db/schema.sql
 ```
 
-### 3. Configure
+When asked for a password, type the MySQL password you set in Step 1.
 
-Copy the example configs and fill in your details:
+### Step 5: Configure Your Router Settings
 
-```bash
-# From the repo root:
-cp config/router.json    config/router.local.json
-cp config/payment.json   config/payment.local.json
-```
-
-Edit `config/router.local.json`:
+1. Go to the `config` folder inside the wifizone folder
+2. Copy the file `router.json` and rename the copy to `router.local.json`
+3. Open `router.local.json` with Notepad and fill in your router details:
 
 ```json
 {
   "host": "192.168.88.1",
   "port": 8728,
   "user": "admin",
-  "password": "YOUR_ROUTER_PASSWORD"
+  "password": "YOUR_ROUTER_PASSWORD_HERE"
 }
 ```
 
-Edit `config/payment.local.json` or set environment variables:
+> 💡 Replace `YOUR_ROUTER_PASSWORD_HERE` with your actual MikroTik password.
 
-| Variable | Description |
+### Step 6: Install the Browser Extension
+
+1. Open **Google Chrome** or **Microsoft Edge**
+2. Go to `chrome://extensions` (Chrome) or `edge://extensions` (Edge) in the address bar
+3. Enable **Developer Mode** (toggle in the top-right corner)
+4. Click **Load Unpacked**
+5. Select the `extension/` folder inside your wifizone directory
+6. The WIFIZONE extension icon will appear in your browser toolbar
+
+> ⚠️ **Important:** The browser extension is **required** for the admin dashboard to work. Without it, the dashboard will not load. If you used the One-Click Installer, this step may already be done for you automatically.
+
+---
+
+## ▶️ How to Run WIFIZONE for the First Time
+
+### Using the One-Click Bootstrap (Easiest Way)
+
+1. Open **File Explorer** and go to the `wifizone` folder
+2. Open the `scripts` folder
+3. **Right-click** on `bootstrap.ps1`
+4. Click **"Run with PowerShell"**
+5. The script will:
+   - Check that all required programs are installed
+   - Set up the database automatically
+   - Start the WIFIZONE server
+   - Open your dashboard in the browser
+
+### Using Command Prompt (Alternative)
+
+1. Open Command Prompt
+2. Navigate to the wifizone folder: `cd wifizone\backend`
+3. Start the server: `node server.js`
+4. Open your browser and go to: **http://localhost:3000**
+
+### First-Time Setup in the Dashboard
+
+When WIFIZONE opens in your browser for the first time:
+
+1. **Go to your dashboard:** http://localhost:3000/dashboard.html
+2. **Set your voucher plans** — add your pricing (e.g., ₱10 = 1 hour, ₱25 = 3 hours)
+3. **Enter your router password** in the settings
+4. **Test the connection** — click "Test Router" to make sure WIFIZONE can talk to your MikroTik
+
+> 💡 Keep the server running in the background while your hotspot is open for business!
+
+---
+
+## 📡 How to Connect Your MikroTik Router
+
+### Step 1: Connect the Router
+
+1. Connect your MikroTik router to your computer using a **LAN cable** (ether1 or any port)
+2. Connect your **Globe modem or Starlink** to the router's WAN port (usually ether1)
+3. Power on the router and wait 30 seconds
+
+### Step 2: Open WinBox
+
+1. Download **WinBox** from the MikroTik website: https://mikrotik.com/download
+2. Open WinBox and click on your router's MAC address to connect
+3. Log in with username `admin` and leave the password blank (default)
+
+### Step 3: Apply the WIFIZONE Router Script
+
+This script automatically sets up your router for hotspot use:
+
+1. In WinBox, go to **Files**
+2. Drag and drop the `router-config.rsc` file from your wifizone folder
+3. Open the **Terminal** in WinBox
+4. Type: `/import router-config.rsc` and press Enter
+5. Wait for it to finish (about 30 seconds)
+
+### Step 4: Verify the Setup
+
+After the script runs, your router will have:
+- ✅ A **Hotspot** running on the WiFi and LAN ports
+- ✅ **VIP and Regular** speed profiles set up
+- ✅ **DHCP server** giving IPs to customers (192.168.88.10 to 192.168.88.254)
+- ✅ **API access** on port 8728 (for WIFIZONE to control it)
+
+### Step 5: Test the Connection
+
+1. In WIFIZONE dashboard, go to **Settings → Router**
+2. Enter your router's IP address (default: `192.168.88.1`)
+3. Enter your router password
+4. Click **"Test Connection"** — you should see a green checkmark ✅
+
+> 💡 **Tip:** If the test fails, make sure your computer is connected to the router with a LAN cable, and that the API service is enabled in WinBox under **IP → Services → API**.
+
+---
+
+## 🎟️ How to Create and Sell Vouchers (Time-Based)
+
+### Setting Up Your Voucher Plans
+
+1. Open your WIFIZONE dashboard at **http://localhost:3000/dashboard.html**
+2. Go to the **Plans** section
+3. Click **"Add New Plan"**
+4. Fill in the details:
+
+| Field | Example |
 |---|---|
-| `STRIPE_SECRET_KEY` | Stripe secret key (`sk_live_...`) |
-| `STRIPE_WEBHOOK_SEC` | Stripe webhook signing secret (`whsec_...`) |
-| `OPERATOR_API_TOKEN` | Bearer token for dashboard/operator API endpoints |
-| `ROUTER_HOST` | MikroTik router IP (overrides `config/router.local.json`) |
-| `ROUTER_USER` | MikroTik API username |
-| `ROUTER_PASSWORD` | MikroTik API password |
-| `DB_HOST` | MySQL host (default: 127.0.0.1) |
-| `DB_USER` | MySQL user (default: root) |
-| `DB_PASSWORD` | MySQL password |
-| `DB_NAME` | MySQL database (default: wifizone_elite) |
-| `PORT` | HTTP port (default: 3000) |
+| Plan Name | "1 Hour Unlimited" |
+| Duration | 60 minutes |
+| Price | ₱10 |
+| Speed Profile | Regular (5 Mbps) or VIP (20 Mbps) |
 
-> **Security:** Never commit real credentials. `config/router.local.json` and `config/payment.local.json` are in `.gitignore`.
+5. Click **Save** — your plan is now available to customers!
 
-### 4. MikroTik Router Setup
+### How the Sales Process Works
 
-Apply the included RouterOS script:
+Here's what happens when a customer buys WiFi from you:
 
 ```
-# 1. Upload to router via WinBox File Manager or SCP/SFTP:
-sftp admin@192.168.88.1
-put router-config.rsc router-config.rsc
-
-# 2. In WinBox terminal or SSH:
-/import router-config.rsc
+Customer connects to your WiFi
+         ↓
+They see your WIFIZONE portal page (like a website)
+         ↓
+They pick a plan (e.g., ₱10 for 1 hour)
+         ↓
+They pay via GCash or card
+         ↓
+WIFIZONE automatically activates their internet
+         ↓
+Their timer starts counting down
+         ↓
+When time is up, they are automatically disconnected
 ```
 
-The script configures:
-- DHCP client on `ether1` (WAN/Starlink)
-- Bridge (`ether2` + `wlan1`) for LAN clients
-- DHCP server `192.168.88.10–254`
-- MikroTik Hotspot with `VIP` and `REGULAR` profiles
-- Firewall mangle rules for packet marks (`vip` / `regular`)
-- Queue tree for global bandwidth shaping
-- NAT masquerade
-- API service on port 8728
-- SNMP for telemetry polling
+### Collecting Payments
 
-### 5. Start the Backend
+**Option 1: GCash (Recommended)**
+- Customers pay directly through GCash on their phone
+- WIFIZONE automatically confirms payment and activates their session
+- No manual verification needed!
 
-```bash
-# From the repo root:
-cd backend
-node server.js
-```
+**Option 2: Manual (Cash)**
+- Customer pays you cash
+- You go to your dashboard and manually activate their session
+- Click on the customer's device and click **"Activate"**
 
-Or using the Windows bootstrap:
+### Viewing Your Sales
 
-```powershell
-# Full start (with deployer checks)
-.\scripts\bootstrap.ps1
-
-# Extended start (autopilot + dish controls, deployer in separate window)
-.\scripts\bootstrap.ps2
-```
-
-The server starts on `http://0.0.0.0:3000`.
+- Go to **Dashboard → Earnings** to see today's revenue
+- Go to **Dashboard → Sessions** to see all active and past customers
+- The dashboard updates in real time — no need to refresh!
 
 ---
 
-## Pages
+## 🌐 How to Add Multiple Globe Modems
 
-| URL | Description |
-|---|---|
-| `http://YOUR_SERVER:3000/` | Redirects to operator dashboard |
-| `http://YOUR_SERVER:3000/dashboard.html` | Operator dashboard (admin-panel) |
-| `http://YOUR_SERVER:3000/portal/` | Client captive portal landing page |
-| `http://YOUR_SERVER:3000/portal/login.html` | Session activation page |
+Running multiple Globe LTE modems gives your customers more stable internet. Here's how to add them:
 
----
+### Step 1: Connect the Modems to Your Router
 
-## API Reference
+1. Connect **Modem 1** to your MikroTik's `ether1` port
+2. Connect **Modem 2** to `ether2` (or use a USB hub for multiple LTE USB dongles)
+3. For more modems, use a **managed switch** connected to your router
 
-### `GET /api/plans`
-Returns available plans ordered by duration.
+### Step 2: Configure Load Balancing in WinBox
 
-```json
-[{ "id": 1, "name": "1 Hour", "duration_minutes": 60, "price_pesos": "10.00" }]
-```
+1. Open **WinBox** and go to **IP → Routes**
+2. Add a route for each modem:
+   - Route 1: Gateway = Modem 1's IP (e.g., 192.168.1.1), Distance = 1
+   - Route 2: Gateway = Modem 2's IP (e.g., 192.168.2.1), Distance = 2
+3. This makes MikroTik automatically switch to Modem 2 if Modem 1 goes down
 
-### `POST /api/session/start`
-Creates an unpaid session for a client device.
+### Step 3: Set Up Failover
 
-```json
-{ "mac_address": "AA:BB:CC:DD:EE:FF", "plan_id": 1 }
-```
+In WinBox:
+1. Go to **IP → Routes**
+2. Right-click on your secondary modem's route
+3. Set **Distance** to 2 (primary modem stays at Distance 1)
+4. MikroTik will automatically failover to the backup modem!
 
-Returns `{ session_id, user_id }`. Session auto-expires if unpaid within 5 minutes.
+### Step 4: Test Your Setup
 
-### `POST /api/payment/gcash/callback`
-Called by GCash payment webhook to confirm a payment.
+1. Disconnect Modem 1 (just unplug it)
+2. Check if the internet still works through Modem 2
+3. Reconnect Modem 1 — it should automatically become the primary again
 
-```json
-{ "session_id": 1, "txn_id": "REF123", "amount": 10.00 }
-```
+> 💡 **Tip for Globe LTE Modems:** Each Globe modem has a SIM card. Make sure your SIM cards have enough data load, or register them to an unlimited promo to avoid unexpected disconnections.
 
-### `POST /api/payment/stripe/webhook`
-Called by Stripe with a verified `payment_intent.succeeded` event.  
-Requires a valid `Stripe-Signature` header — **not callable from a browser**.
-
-### `GET /api/session/:id/status`
-Returns the current status of a session (for client-side polling).
-
-```json
-{ "id": 1, "status": "active", "plan": "1 Hour", "start_time": "...", "end_time": "..." }
-```
-
-### `GET /api/hotspot/users`
-Returns live active sessions pulled from MikroTik's hotspot.
-
-```json
-[{ "mac": "AA:BB:CC:DD:EE:FF", "ip": "192.168.88.10", "uptime": "1h30m", "bytesIn": 1048576, "bytesOut": 524288, "idleTime": "0s" }]
-```
-
-### `GET /api/telemetry`
-Returns latest SNMP telemetry snapshot.
-
-```json
-{ "latencyMs": 45, "jitterMs": 3, "cpuLoad": 12, "timestamp": "2026-04-15T04:27:09.389Z" }
-```
-
-### `GET /api/stats`
-Returns operator statistics.
-
-```json
-{ "total_clients": 42, "total_revenue": "2100.00" }
-```
+> 💡 **Globe SIM tip:** Use different Globe promos on different SIMs (e.g., GoUnli99 on one, GoSURF299 on another) so that if one SIM's promo expires, the others keep working.
 
 ---
 
-## Session State Machine
+## 📷 Recommended Screenshots
 
-```
-unpaid ──(payment confirmed)──▶ active ──(end_time reached)──▶ expired
-  │
-  └─(timeout, no payment)──────────────────────────────────────▶ expired
-```
+*Add your own screenshots here to help customers and future users understand your setup!*
 
-Duplicate transaction IDs are rejected. Sessions are locked in MikroTik via `addUser()` and auto-disconnected by the router timer.
+Here are the screenshots we recommend including in your business documentation:
+
+### 1. Your WiFi Portal (Customer View)
+> 📸 *Screenshot showing your WiFi portal with your business name and available plans*
+>
+> `[Add screenshot here: frontend/index.html in browser]`
+
+### 2. Admin Dashboard — Revenue Overview
+> 📸 *Screenshot of your dashboard showing today's earnings and number of connected users*
+>
+> `[Add screenshot here: dashboard.html - Stats section]`
+
+### 3. Active Sessions Table
+> 📸 *Screenshot showing the list of currently connected customers*
+>
+> `[Add screenshot here: dashboard.html - Live Users table]`
+
+### 4. Voucher Plans List
+> 📸 *Screenshot showing your pricing (e.g., ₱10/hour, ₱25/3 hours, ₱50/day)*
+>
+> `[Add screenshot here: dashboard.html - Plans section]`
+
+### 5. GCash Payment Screen
+> 📸 *Screenshot of the payment page that customers see when paying via GCash*
+>
+> `[Add screenshot here: payment screen on mobile]`
+
+### 6. Router Connection Status
+> 📸 *Screenshot showing green "Connected" status to your MikroTik router*
+>
+> `[Add screenshot here: Settings → Router Connection]`
 
 ---
 
-## Security Notes
+## ❓ Frequently Asked Questions (FAQ)
 
-- **Stripe webhooks** are verified using `stripe.webhooks.constructEvent()` with a signing secret.  
-  The raw request body is preserved for signature verification (raw parser registered before JSON parser).
-- **GCash callback** should be secured with HMAC or IP allowlist in production (see `backend/server.js` comments).
-- **Credentials** (router password, Stripe keys) should be in environment variables — not committed.
-- All payment and API endpoints are rate-limited.
+### 🔧 Installation & Setup
+
+**Q: Do I need to know programming to use WIFIZONE?**
+> No! WIFIZONE is designed for regular users. The One-Click Installer handles everything for you. You just need to know how to click a mouse and type simple settings.
+
+**Q: Will WIFIZONE work on my old Windows 7 laptop?**
+> Yes! WIFIZONE works on Windows 7, 8, 10, and 11. As long as your computer can connect to the internet and run a browser, WIFIZONE will work.
+
+**Q: Why do I need a browser extension?**
+> The browser extension (for Chrome or Edge) allows WIFIZONE's dashboard to communicate securely with your router. Without it, some dashboard features won't work properly. Installation only takes 30 seconds.
+
+**Q: I don't have a MikroTik router. Can I still use WIFIZONE?**
+> WIFIZONE is designed specifically for MikroTik routers. You'll need at least a basic MikroTik router (like the hAP lite, which costs around ₱1,500–₱2,000 in the Philippines). It's a one-time investment that pays for itself quickly!
+
+**Q: Can I use WIFIZONE with my Globe LTE modem?**
+> Absolutely! Just connect your Globe modem to your MikroTik router's WAN port. WIFIZONE works with Globe, PLDT, Sky, Starlink, and any internet source.
 
 ---
 
-## Directory Structure
+### 💰 Business & Payments
+
+**Q: How do customers pay?**
+> Customers can pay via **GCash** directly from their phone, or with a credit/debit card. Everything is automatic — no need for you to manually check payments.
+
+**Q: What happens when a customer's time runs out?**
+> WIFIZONE automatically disconnects them from the internet. They'll need to buy a new voucher to reconnect. You don't have to do anything manually!
+
+**Q: Can I offer different speeds to different customers?**
+> Yes! You can create **VIP plans** (faster speed, higher price) and **Regular plans** (standard speed, lower price). Customers who pay more get faster internet automatically.
+
+**Q: How much can I earn with WIFIZONE?**
+> It depends on your location and number of customers. A typical setup in a neighborhood with 20–50 regular customers can earn ₱500–₱3,000+ per day. The more customers you have, the more you earn!
+
+**Q: Is GCash integration free?**
+> WIFIZONE itself is open source and free to use. GCash charges a small transaction fee per payment (check GCash for Biz for current rates).
+
+---
+
+### 🌐 Technical & Troubleshooting
+
+**Q: WIFIZONE can't connect to my MikroTik router. What do I do?**
+> 1. Make sure your computer is connected to the router with a **LAN cable**
+> 2. In WinBox, go to **IP → Services** and make sure **API** is enabled (port 8728)
+> 3. Check that your router password in WIFIZONE's settings matches your actual WinBox password
+> 4. Try restarting the router and WIFIZONE
+
+**Q: Customers can connect to my WiFi but they don't see the WIFIZONE portal. Why?**
+> This is usually because the Hotspot is not fully configured on your router. Make sure you ran the `router-config.rsc` script in WinBox. If the portal still doesn't appear, check WinBox under **IP → Hotspot** and make sure the hotspot is running.
+
+**Q: My Globe modem lost connection. Will WIFIZONE automatically switch to backup?**
+> Yes, if you've set up multiple modems with failover routes in MikroTik (see the "Multiple Globe Modems" section above), your router will automatically switch to the backup modem.
+
+**Q: Can multiple people access the WIFIZONE dashboard at the same time?**
+> Yes! The dashboard is accessible from any device on your network by going to `http://YOUR-COMPUTER-IP:3000/dashboard.html`. Your phone, tablet, and other computers can all view it simultaneously.
+
+**Q: How do I back up my customer data?**
+> Your data is stored in a MySQL database. To back it up, open Command Prompt and run:
+> ```
+> mysqldump -u root -p wifizone_elite > backup.sql
+> ```
+> Save the `backup.sql` file to a USB drive or cloud storage.
+
+**Q: WIFIZONE stopped working after a Windows update. What do I do?**
+> Just restart the WIFIZONE server by running `bootstrap.ps1` again (right-click → Run with PowerShell). Windows updates sometimes close background programs.
+
+---
+
+## 📁 Directory Structure (For Technical Users)
 
 ```
 wifizone/
@@ -282,28 +493,38 @@ wifizone/
 │   └── neon.css
 ├── backend/              Node.js backend
 │   ├── server.js         Express API + WebSocket hub
-│   ├── mikrotik.js       MikroTik API bridge (mikronode)
-│   ├── router-control.js Queue/tree management (mikronode-ng)
+│   ├── mikrotik.js       MikroTik API bridge
+│   ├── router-control.js Queue/tree management
 │   ├── starlink.js       SNMP telemetry poller
 │   ├── autopilot.js      Auto bandwidth balancer
 │   └── package.json
-├── config/               Configuration files (commit only templates)
-│   ├── router.json
-│   └── payment.json
+├── config/               Configuration files
+│   ├── router.json       Router settings template
+│   └── payment.json      Payment settings template
 ├── db/
-│   └── schema.sql        MySQL schema + idempotent seed data
-├── frontend/             Client captive portal pages
+│   └── schema.sql        MySQL database schema
+├── frontend/             Customer-facing portal pages
 │   ├── index.html        Plan picker / landing page
-│   └── login.html        Session activation / status page
+│   └── login.html        Session activation page
 ├── scripts/
-│   ├── bootstrap.ps1     Windows quick-start
+│   ├── bootstrap.ps1     Windows one-click start
 │   ├── bootstrap.ps2     Extended start (autopilot + dish)
-│   └── deployer.py       Python environment checker + server launcher
-└── router-config.rsc     MikroTik RouterOS import script
+│   └── deployer.py       Environment checker + launcher
+└── router-config.rsc     MikroTik RouterOS setup script
 ```
 
 ---
 
-## License
+## 📜 License
 
-[MIT](LICENSE)
+[MIT](LICENSE) — Free to use, modify, and share.
+
+---
+
+<div align="center">
+
+**Made with ❤️ for Filipino WiFi entrepreneurs**
+
+*Start your WiFi business today — WIFIZONE makes it easy!*
+
+</div>
