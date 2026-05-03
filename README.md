@@ -310,11 +310,13 @@ They see your WIFIZONE portal page (like a website)
          ↓
 They pick a plan (e.g., ₱10 for 1 hour)
          ↓
-They pay via GCash or card
+They send payment via GCash to your number/QR code
          ↓
-WIFIZONE automatically activates their internet
+They enter their GCash reference number and tap Submit
          ↓
-Their timer starts counting down
+You see the reference number in your dashboard and verify it
+         ↓
+You click Activate — their internet turns on and timer starts
          ↓
 When time is up, they are automatically disconnected
 ```
@@ -322,9 +324,11 @@ When time is up, they are automatically disconnected
 ### Collecting Payments
 
 **Option 1: GCash (Recommended)**
-- Customers pay directly through GCash on their phone
-- WIFIZONE automatically confirms payment and activates their session
-- No manual verification needed!
+- Customer sends GCash payment to your registered number or QR code
+- They enter their GCash reference number on the portal
+- You see the reference in your **Dashboard → Pending Payments** and verify it
+- Click **Activate** to grant internet access — takes only a few seconds
+- *(If you configure a GCash webhook with `GCASH_WEBHOOK_SECRET`, activation can be fully automatic)*
 
 **Option 2: Manual (Cash)**
 - Customer pays you cash

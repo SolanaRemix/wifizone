@@ -163,48 +163,55 @@ if ($mysqlCmd) {
     $dbPlain    = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
                     [Runtime.InteropServices.Marshal]::SecureStringToBSTR($dbPassword))
 
-    # Write a temporary MySQL defaults file so the password never appears in the process list.
-    $tmpCnf = [System.IO.Path]::GetTempFileName()
-    try {
-        Set-Content -Path $tmpCnf -Value "[client]`nuser=root`npassword=$dbPlain" -Encoding UTF8
-        # Restrict the file to the current user only (best-effort on Windows).
+        # Write a temporary MySQL defaults file (UTF-8 without BOM) so the password
+        # never appears in the process list. PowerShell 5.1 Set-Content -Encoding UTF8
+        # emits a BOM which MySQL option-file parsing cannot handle, so write via
+        # the .NET API with explicit no-BOM encoding.
+        $tmpCnf = [System.IO.Path]::GetTempFileName()
         try {
-            $acl = Get-Acl $tmpCnf
-            $acl.SetAccessRuleProtection($true, $false)
-            $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-                [System.Security.Principal.WindowsIdentity]::GetCurrent().Name,
-                'FullControl', 'Allow')
-            $acl.SetAccessRule($rule)
-            Set-Acl $tmpCnf $acl
-        } catch {
-            Write-Warn "Could not restrict permissions on the temp credentials file ($tmpCnf). Proceeding anyway, but the file may be readable by other local users."
-        }
+            [System.IO.File]::WriteAllText(
+                $tmpCnf,
+                "[client]`nuser=root`npassword=$dbPlain",
+                (New-Object System.Text.UTF8Encoding($false))
+            )
+            # Restrict the file to the current user only (best-effort on Windows).
+            try {
+                $acl = Get-Acl $tmpCnf
+                $acl.SetAccessRuleProtection($true, $false)
+                $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                    [System.Security.Principal.WindowsIdentity]::GetCurrent().Name,
+                    'FullControl', 'Allow')
+                $acl.SetAccessRule($rule)
+                Set-Acl $tmpCnf $acl
+            } catch {
+                Write-Warn "Could not restrict permissions on the temp credentials file ($tmpCnf). Proceeding anyway, but the file may be readable by other local users."
+            }
 
-        # Clear the plaintext password from PowerShell memory (best-effort).
-        # PowerShell strings are immutable so we can't zero-fill the buffer, but
-        # removing the variable removes the GC root and allows earlier collection.
-        Clear-Variable -Name dbPlain -ErrorAction SilentlyContinue
+            # Clear the plaintext password from PowerShell memory (best-effort).
+            # PowerShell strings are immutable so we can't zero-fill the buffer, but
+            # removing the variable removes the GC root and allows earlier collection.
+            Clear-Variable -Name dbPlain -ErrorAction SilentlyContinue
 
-        try {
-            Get-Content -Raw $DB_SCHEMA | mysql "--defaults-extra-file=$tmpCnf"
-            if ($LASTEXITCODE -ne 0) { throw "MySQL exited with code $LASTEXITCODE" }
-            Write-Ok "Database 'wifizone_elite' created with all tables and default plans."
-        } catch {
-            Write-Fail "Database setup failed: $_"
-            Write-Host ""
-            Write-Host "  Common causes:" -ForegroundColor Yellow
-            Write-Host "  - Wrong MySQL root password" -ForegroundColor White
-            Write-Host "  - MySQL service is not running (check Services or start it from MySQL Workbench)" -ForegroundColor White
-            Write-Host ""
-            Write-Host "  Once MySQL is ready, run this command manually and then restart this installer:" -ForegroundColor Yellow
-            Write-Host "  mysql -u root -p < db\schema.sql" -ForegroundColor White
-            Read-Host "Press Enter to exit"
-            exit 1
+            try {
+                Get-Content -Raw $DB_SCHEMA | mysql "--defaults-extra-file=$tmpCnf"
+                if ($LASTEXITCODE -ne 0) { throw "MySQL exited with code $LASTEXITCODE" }
+                Write-Ok "Database 'wifizone_elite' created with all tables and default plans."
+            } catch {
+                Write-Fail "Database setup failed: $_"
+                Write-Host ""
+                Write-Host "  Common causes:" -ForegroundColor Yellow
+                Write-Host "  - Wrong MySQL root password" -ForegroundColor White
+                Write-Host "  - MySQL service is not running (check Services or start it from MySQL Workbench)" -ForegroundColor White
+                Write-Host ""
+                Write-Host "  Once MySQL is ready, run this command manually and then restart this installer:" -ForegroundColor Yellow
+                Write-Host "  mysql -u root -p < db\schema.sql" -ForegroundColor White
+                Read-Host "Press Enter to exit"
+                exit 1
+            }
+        } finally {
+            # Always delete the temp credentials file.
+            Remove-Item -Force -ErrorAction SilentlyContinue $tmpCnf
         }
-    } finally {
-        # Always delete the temp credentials file.
-        Remove-Item -Force -ErrorAction SilentlyContinue $tmpCnf
-    }
 } else {
     Write-Warn "MySQL not found — skipping database setup."
     Write-Warn "Run this command manually after installing MySQL:"
