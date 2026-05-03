@@ -648,11 +648,18 @@ app.post('/api/session/:id/activate', requireOperatorAuth, apiLimiter, async (re
     try {
       result = await confirmPayment(sessionId, txn_id.trim(), parseFloat(plan.price_pesos), 'manual');
     } catch (err) {
-      // confirmPayment throws user-facing errors (e.g. duplicate txn) as plain Error;
-      // distinguish expected flow errors from unexpected DB/internal failures.
+      // Known user-facing errors from confirmPayment get a 409 (conflict) status.
+      // Everything else is an unexpected DB/internal failure → 500.
+      const USER_FACING_ERRORS = new Set([
+        'Duplicate transaction ID',
+        'Session not found',
+        'Session already processed',
+        'Plan not found for session',
+        'User not found for session',
+        'Invalid payment amount',
+      ]);
       const msg = err.message || '';
-      const isFlowError = /duplicate|already|conflict|not found/i.test(msg);
-      if (isFlowError) {
+      if (USER_FACING_ERRORS.has(msg) || msg.startsWith('Underpayment:')) {
         return res.status(409).json({ error: msg });
       }
       console.error('[activate] unexpected error:', err);

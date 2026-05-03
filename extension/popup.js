@@ -161,13 +161,19 @@ portalBtn.addEventListener('click', async () => {
 refreshBtn.addEventListener('click', loadData);
 
 saveUrlBtn.addEventListener('click', async () => {
-  const url = serverInput.value.trim().replace(/\/$/, '');
-  if (!/^https?:\/\/[^\s]+$/.test(url)) {
-    showError('URL must start with http:// or https://');
+  const raw = serverInput.value.trim().replace(/\/$/, '');
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(raw);
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      throw new Error('wrong protocol');
+    }
+  } catch (_) {
+    showError('URL must start with http:// or https:// and be a valid address');
     return;
   }
-  // Request optional host permission for this specific origin so fetches succeed
-  const origin = url.replace(/^(https?:\/\/[^/]+).*$/, '$1') + '/*';
+  const url    = parsedUrl.href.replace(/\/$/, '');
+  const origin = parsedUrl.origin + '/*';
   chrome.permissions.request({ origins: [origin] }, () => {
     // Proceed regardless — operator may decline and still want to save the URL
     chrome.storage.local.set({ serverUrl: url }, loadData);
