@@ -571,7 +571,8 @@ app.post('/api/plans', requireOperatorAuth, apiLimiter, async (req, res) => {
     const [[plan]] = await db.query('SELECT * FROM plans WHERE id = ?', [result.insertId]);
     res.status(201).json(plan);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('[POST /api/plans] db error:', err);
+    res.status(500).json({ error: 'Database error. Check server logs.' });
   }
 });
 
@@ -600,7 +601,14 @@ app.delete('/api/plans/:id', requireOperatorAuth, apiLimiter, async (req, res) =
     await db.query('DELETE FROM plans WHERE id = ?', [planId]);
     res.json({ message: 'Plan deleted' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    // Handle FK constraint violations (e.g. race condition — session inserted between check and delete)
+    if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.code === 'ER_ROW_IS_REFERENCED') {
+      return res.status(409).json({
+        error: 'Cannot delete a plan that has been used in sessions. You can rename it instead.',
+      });
+    }
+    console.error('[DELETE /api/plans] db error:', err);
+    res.status(500).json({ error: 'Database error. Check server logs.' });
   }
 });
 
@@ -619,7 +627,8 @@ app.get('/api/sessions/pending', requireOperatorAuth, apiLimiter, async (_req, r
     );
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('[GET /api/sessions/pending] db error:', err);
+    res.status(500).json({ error: 'Database error. Check server logs.' });
   }
 });
 

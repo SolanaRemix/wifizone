@@ -172,7 +172,13 @@ saveUrlBtn.addEventListener('click', async () => {
     showError('URL must start with http:// or https:// and be a valid address');
     return;
   }
-  const url    = parsedUrl.href.replace(/\/$/, '');
+  // Store only the origin (protocol + host + port) so that appending /api/... paths works correctly.
+  // Reject URLs with extra paths — the server URL should be the root of the WIFIZONE server.
+  if (parsedUrl.pathname && parsedUrl.pathname !== '/') {
+    showError('Enter only the server root URL (e.g. http://192.168.88.1:3000), without a path');
+    return;
+  }
+  const url    = parsedUrl.origin;
   const origin = parsedUrl.origin + '/*';
   chrome.permissions.request({ origins: [origin] }, () => {
     // Proceed regardless — operator may decline and still want to save the URL

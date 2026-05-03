@@ -83,6 +83,24 @@ INSERT INTO operator_stats (id, singleton_guard, total_clients, total_revenue)
 SELECT 1, 1, 0, 0.00 WHERE NOT EXISTS (SELECT 1 FROM operator_stats WHERE id = 1);
 
 -- Migration: add 'manual' to payments.method for existing databases.
--- Safe to run on a fresh install too — no-op if the column definition already
--- includes 'manual' (MySQL ignores MODIFY when the definition is unchanged).
-ALTER TABLE payments MODIFY COLUMN method ENUM('gcash','stripe','manual') NOT NULL;
+-- Only runs the ALTER when 'manual' is not yet part of the enum definition,
+-- avoiding an unnecessary table rebuild and metadata lock on fresh installs.
+SET @col_type = (
+  SELECT COLUMN_TYPE
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME   = 'payments'
+    AND COLUMN_NAME  = 'method'
+);
+
+SET @needs_alter = IF(LOCATE('manual', COALESCE(@col_type, '')) = 0, TRUE, FALSE);
+
+-- Use a prepared statement so the ALTER only executes when actually needed.
+SET @alter_sql = IF(
+  @needs_alter,
+  "ALTER TABLE payments MODIFY COLUMN method ENUM('gcash','stripe','manual') NOT NULL",
+  'SELECT 1 -- migration already applied'
+);
+PREPARE stmt FROM @alter_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;

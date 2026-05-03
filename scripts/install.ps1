@@ -165,11 +165,19 @@ if ($mysqlCmd) {
 
     try {
         Get-Content -Raw $DB_SCHEMA | mysql @mysqlArgs
-        if ($LASTEXITCODE -ne 0) { throw "MySQL error" }
+        if ($LASTEXITCODE -ne 0) { throw "MySQL exited with code $LASTEXITCODE" }
         Write-Ok "Database 'wifizone_elite' created with all tables and default plans."
     } catch {
-        Write-Warn "Database setup failed. This may be okay if the database already exists."
-        Write-Warn "Error: $_"
+        Write-Fail "Database setup failed: $_"
+        Write-Host ""
+        Write-Host "  Common causes:" -ForegroundColor Yellow
+        Write-Host "  - Wrong MySQL root password" -ForegroundColor White
+        Write-Host "  - MySQL service is not running (check Services or start it from MySQL Workbench)" -ForegroundColor White
+        Write-Host ""
+        Write-Host "  Once MySQL is ready, run this command manually and then restart this installer:" -ForegroundColor Yellow
+        Write-Host "  mysql -u root -p < db\schema.sql" -ForegroundColor White
+        Read-Host "Press Enter to exit"
+        exit 1
     }
 } else {
     Write-Warn "MySQL not found — skipping database setup."
