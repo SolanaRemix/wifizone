@@ -28,7 +28,7 @@ A clean page where customers pick their plan and pay via GCash or card.
 
 ### Session Activation Page
 
-After payment, customers enter their reference number and their internet turns on automatically.
+After GCash payment, customers enter their GCash reference number on the portal. The session is pending until the operator verifies and clicks **Activate** in the dashboard (or activates automatically if a webhook is configured).
 
 ![Activation Page](https://github.com/user-attachments/assets/fbd4c2f1-faf6-4970-b1b1-116a90256ca8)
 
@@ -332,8 +332,8 @@ When time is up, they are automatically disconnected
 
 **Option 2: Manual (Cash)**
 - Customer pays you cash
-- You go to your dashboard and manually activate their session
-- Click on the customer's device and click **"Activate"**
+- Customer enters any reference you agree on (e.g., "CASH-001") on the payment portal
+- Open **Dashboard → Pending Payments** and click **Activate** next to their session
 
 ### Viewing Your Sales
 
@@ -448,7 +448,7 @@ Here are the screenshots we recommend including in your business documentation:
 ### 💰 Business & Payments
 
 **Q: How do customers pay?**
-> Customers can pay via **GCash** directly from their phone, or with a credit/debit card. Everything is automatic — no need for you to manually check payments.
+> GCash customers submit their reference number on the portal, which appears in **Dashboard → Pending Payments** for you to verify and activate. For automatic activation, configure `GCASH_WEBHOOK_SECRET` with a GCash webhook.
 
 **Q: What happens when a customer's time runs out?**
 > WIFIZONE automatically disconnects them from the internet. They'll need to buy a new voucher to reconnect. You don't have to do anything manually!

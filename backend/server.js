@@ -704,24 +704,30 @@ app.get('/api/sync/stats', requireOperatorAuth, apiLimiter, (_req, res) => {
 // Returns configured WAN interfaces and their live status from MikroTik.
 // Falls back to config-only data if the router is unreachable.
 app.get('/api/wan/status', requireOperatorAuth, apiLimiter, async (_req, res) => {
-  const wanCfg = loadConfig('wan');
-  const interfaces = Array.isArray(wanCfg.interfaces) ? wanCfg.interfaces : [];
+  let interfaces;
+  try {
+    const wanCfg = loadConfig('wan');
+    interfaces = Array.isArray(wanCfg.interfaces) ? wanCfg.interfaces : [];
+  } catch (err) {
+    console.error('[wan/status] config error:', err.message);
+    return res.status(500).json({ error: 'WAN config could not be loaded. Check server logs.' });
+  }
 
   try {
     // Pull interface status from MikroTik
     const liveStatus = await mikrotik.getInterfaceStatus();
     const result = interfaces.map(iface => {
-      const live = liveStatus.find(l => l.name === iface.interface) || {};
+      const live = liveStatus.find(l => l.name === iface.interface);
       return {
         name:      iface.name,
         interface: iface.interface,
         type:      iface.type || 'unknown',
         provider:  iface.provider || '',
         priority:  iface.priority || 1,
-        running:   live.running  || false,
-        disabled:  live.disabled || false,
-        txBytes:   live.txBytes  || 0,
-        rxBytes:   live.rxBytes  || 0,
+        running:   live ? (live.running  || false) : null,
+        disabled:  live ? (live.disabled || false) : null,
+        txBytes:   live ? (live.txBytes  || 0)     : 0,
+        rxBytes:   live ? (live.rxBytes  || 0)     : 0,
       };
     });
     res.json(result);

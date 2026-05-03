@@ -13,7 +13,9 @@
   // Operator API token — stored in sessionStorage so operators don't have to
   // re-enter on every page reload within the same session.
   // Set OPERATOR_API_TOKEN on the server to enable auth.
-  let OPERATOR_TOKEN = sessionStorage.getItem('OPERATOR_TOKEN') || '';
+  let OPERATOR_TOKEN  = sessionStorage.getItem('OPERATOR_TOKEN') || '';
+  // Prevents repeated authentication prompts during auto-refresh intervals.
+  let isUnauthorized  = false;
 
   function getAuthHeaders() {
     return OPERATOR_TOKEN ? { Authorization: `Bearer ${OPERATOR_TOKEN}` } : {};
@@ -221,12 +223,14 @@
   }
 
   async function refreshHotspotUsers() {
+    if (isUnauthorized) return;
     refreshBtn.disabled  = true;
     hotspotTs.textContent = 'Loading…';
 
     try {
       const res   = await fetch('/api/hotspot/users', { headers: getAuthHeaders() });
       if (res.status === 401) {
+        isUnauthorized = true;
         promptToken();
         hotspotTs.textContent = 'Authentication required.';
         return;
@@ -273,10 +277,11 @@
 
   // ── Pending Sessions ───────────────────────────────────────────────────────
   async function refreshPendingSessions() {
+    if (isUnauthorized) return;
     if (refreshPending) refreshPending.disabled = true;
     try {
       const res  = await fetch('/api/sessions/pending', { headers: getAuthHeaders() });
-      if (res.status === 401) { promptToken(); return; }
+      if (res.status === 401) { isUnauthorized = true; promptToken(); return; }
       if (!res.ok) {
         pendingTs.textContent  = `Error ${res.status}: could not load pending sessions.`;
         pendingTbody.innerHTML = '<tr><td colspan="7" class="empty-row" style="color:var(--red);">Failed to load pending sessions.</td></tr>';
@@ -384,7 +389,7 @@
   async function loadPlans() {
     try {
       const res = await fetch('/api/plans', { headers: getAuthHeaders() });
-      if (res.status === 401) { promptToken(); return; }
+      if (res.status === 401) { isUnauthorized = true; promptToken(); return; }
       if (!res.ok) {
         plansTbody.innerHTML = `<tr><td colspan="5" class="empty-row" style="color:var(--red);">Error ${res.status}: failed to load plans.</td></tr>`;
         return;
@@ -491,11 +496,12 @@
 
   // ── Multi-WAN Status ───────────────────────────────────────────────────────
   async function loadWanStatus() {
+    if (isUnauthorized) return;
     if (refreshWan) refreshWan.disabled = true;
     wanList.innerHTML = '<p class="ts-line">Loading…</p>';
     try {
       const res  = await fetch('/api/wan/status', { headers: getAuthHeaders() });
-      if (res.status === 401) { promptToken(); return; }
+      if (res.status === 401) { isUnauthorized = true; promptToken(); return; }
       if (!res.ok) {
         wanList.innerHTML = `<p class="ts-line" style="color:var(--red);">Error ${res.status}: failed to load WAN status.</p>`;
         return;
@@ -558,6 +564,7 @@
     const tok = window.prompt('Enter OPERATOR_API_TOKEN to access dashboard:');
     if (tok) {
       OPERATOR_TOKEN = tok.trim();
+      isUnauthorized = false;
       sessionStorage.setItem('OPERATOR_TOKEN', OPERATOR_TOKEN);
       // Re-connect the WebSocket with the updated token in the URL.
       if (ws) ws.close();
