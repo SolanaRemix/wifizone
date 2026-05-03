@@ -222,8 +222,9 @@
     return n + ' B';
   }
 
-  async function refreshHotspotUsers() {
-    if (isUnauthorized) return;
+  async function refreshHotspotUsers(force = false) {
+    if (isUnauthorized && !force) return;
+    if (force) isUnauthorized = false;
     refreshBtn.disabled  = true;
     hotspotTs.textContent = 'Loading…';
 
@@ -270,14 +271,15 @@
     }
   }
 
-  refreshBtn.addEventListener('click', refreshHotspotUsers);
+  refreshBtn.addEventListener('click', () => refreshHotspotUsers(true));
 
   // Auto-refresh hotspot users every 30 s
   setInterval(refreshHotspotUsers, HOTSPOT_AUTO_REFRESH_MS);
 
   // ── Pending Sessions ───────────────────────────────────────────────────────
-  async function refreshPendingSessions() {
-    if (isUnauthorized) return;
+  async function refreshPendingSessions(force = false) {
+    if (isUnauthorized && !force) return;
+    if (force) isUnauthorized = false;
     if (refreshPending) refreshPending.disabled = true;
     try {
       const res  = await fetch('/api/sessions/pending', { headers: getAuthHeaders() });
@@ -368,7 +370,7 @@
     }
   }
 
-  if (refreshPending) refreshPending.addEventListener('click', refreshPendingSessions);
+  if (refreshPending) refreshPending.addEventListener('click', () => refreshPendingSessions(true));
   // Auto-refresh pending every 30 s
   setInterval(refreshPendingSessions, 30000);
 
@@ -495,8 +497,9 @@
   if (refreshPlans) refreshPlans.addEventListener('click', loadPlans);
 
   // ── Multi-WAN Status ───────────────────────────────────────────────────────
-  async function loadWanStatus() {
-    if (isUnauthorized) return;
+  async function loadWanStatus(force = false) {
+    if (isUnauthorized && !force) return;
+    if (force) isUnauthorized = false;
     if (refreshWan) refreshWan.disabled = true;
     wanList.innerHTML = '<p class="ts-line">Loading…</p>';
     try {
@@ -555,14 +558,14 @@
       .replace(/"/g,  '&quot;');
   }
 
-  if (refreshWan) refreshWan.addEventListener('click', loadWanStatus);
+  if (refreshWan) refreshWan.addEventListener('click', () => loadWanStatus(true));
   // Auto-refresh WAN every 60 s
   setInterval(loadWanStatus, 60000);
 
   // ── Init ───────────────────────────────────────────────────────────────────
   function promptToken() {
     const tok = window.prompt('Enter OPERATOR_API_TOKEN to access dashboard:');
-    if (tok) {
+    if (tok && tok.trim()) {
       OPERATOR_TOKEN = tok.trim();
       isUnauthorized = false;
       sessionStorage.setItem('OPERATOR_TOKEN', OPERATOR_TOKEN);
@@ -575,7 +578,7 @@
 
   fetch('/api/stats', { headers: getAuthHeaders() })
     .then(r => {
-      if (r.status === 401) { promptToken(); return null; }
+      if (r.status === 401) { isUnauthorized = true; promptToken(); return null; }
       return r.json();
     })
     .then(d => { if (d) renderStats(d); })

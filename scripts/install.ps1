@@ -160,8 +160,12 @@ Write-Step "Setting up MySQL database..."
 if ($mysqlCmd) {
     Write-Host "  Enter your MySQL root password (press Enter if none):" -ForegroundColor Yellow
     $dbPassword = Read-Host -AsSecureString "  MySQL root password"
-    $dbPlain    = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
-                    [Runtime.InteropServices.Marshal]::SecureStringToBSTR($dbPassword))
+    $bstr       = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($dbPassword)
+    try {
+        $dbPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+    } finally {
+        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+    }
 
         # Write a temporary MySQL defaults file (UTF-8 without BOM) so the password
         # never appears in the process list. PowerShell 5.1 Set-Content -Encoding UTF8
