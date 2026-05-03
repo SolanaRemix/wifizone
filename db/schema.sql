@@ -83,8 +83,11 @@ INSERT INTO operator_stats (id, singleton_guard, total_clients, total_revenue)
 SELECT 1, 1, 0, 0.00 WHERE NOT EXISTS (SELECT 1 FROM operator_stats WHERE id = 1);
 
 -- Migration: add 'manual' to payments.method for existing databases.
--- Only runs the ALTER when 'manual' is not yet part of the enum definition,
--- avoiding an unnecessary table rebuild and metadata lock on fresh installs.
+-- This block runs AFTER the CREATE TABLE above, so the payments table and its
+-- method column are guaranteed to exist. @col_type will be NULL only if the
+-- column was somehow dropped (not a normal condition), in which case we skip
+-- the ALTER — the CREATE TABLE already defined the correct 3-value enum for
+-- fresh installs, so no ALTER is ever needed on a new database.
 SET @col_type = (
   SELECT COLUMN_TYPE
   FROM INFORMATION_SCHEMA.COLUMNS
@@ -93,7 +96,13 @@ SET @col_type = (
     AND COLUMN_NAME  = 'method'
 );
 
-SET @needs_alter = IF(LOCATE('manual', COALESCE(@col_type, '')) = 0, TRUE, FALSE);
+-- @needs_alter is TRUE only when the column exists and 'manual' is absent.
+-- NULL @col_type means column not found → CREATE TABLE already set it correctly → no alter needed.
+SET @needs_alter = IF(
+  @col_type IS NOT NULL AND LOCATE('manual', @col_type) = 0,
+  TRUE,
+  FALSE
+);
 
 -- Use a prepared statement so the ALTER only executes when actually needed.
 SET @alter_sql = IF(

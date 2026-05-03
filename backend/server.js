@@ -571,7 +571,7 @@ app.post('/api/plans', requireOperatorAuth, apiLimiter, async (req, res) => {
     const [[plan]] = await db.query('SELECT * FROM plans WHERE id = ?', [result.insertId]);
     res.status(201).json(plan);
   } catch (err) {
-    console.error('[POST /api/plans] db error:', err);
+    console.error('[POST /api/plans] db error:', err.message);
     res.status(500).json({ error: 'Database error. Check server logs.' });
   }
 });
@@ -607,7 +607,7 @@ app.delete('/api/plans/:id', requireOperatorAuth, apiLimiter, async (req, res) =
         error: 'Cannot delete a plan that has been used in sessions. You can rename it instead.',
       });
     }
-    console.error('[DELETE /api/plans] db error:', err);
+    console.error('[DELETE /api/plans] db error:', err.message);
     res.status(500).json({ error: 'Database error. Check server logs.' });
   }
 });
@@ -627,7 +627,7 @@ app.get('/api/sessions/pending', requireOperatorAuth, apiLimiter, async (_req, r
     );
     res.json(rows);
   } catch (err) {
-    console.error('[GET /api/sessions/pending] db error:', err);
+    console.error('[GET /api/sessions/pending] db error:', err.message);
     res.status(500).json({ error: 'Database error. Check server logs.' });
   }
 });
