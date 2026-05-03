@@ -1,7 +1,10 @@
-# WIFIZONE ELITE — One-Click Windows Installer
-# install.ps1 — Downloads all prerequisites, sets up the database,
-#               configures the server, installs the browser extension,
-#               and creates a desktop shortcut.
+# WIFIZONE ELITE — Windows Setup Assistant
+# install.ps1 — Installs Node.js (via winget), runs npm install,
+#               imports the database schema into MySQL, creates
+#               config files from templates, and creates a desktop
+#               shortcut. MySQL and Git must be installed beforehand.
+#               The browser extension is loaded manually via the
+#               instructions printed at the end of this script.
 #
 # Works on Windows 10 and Windows 11.
 # (Windows 7/8 are not supported by current Node.js LTS builds.)

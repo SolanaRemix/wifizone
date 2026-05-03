@@ -725,8 +725,9 @@ app.get('/api/wan/status', requireOperatorAuth, apiLimiter, async (_req, res) =>
       };
     });
     res.json(result);
-  } catch (_err) {
-    // Router unreachable — return config with unknown status
+  } catch (err) {
+    // Router unreachable — log and return config with unknown status
+    console.error('[wan/status] router unreachable:', err.message);
     res.json(interfaces.map(iface => ({
       name:      iface.name,
       interface: iface.interface,
