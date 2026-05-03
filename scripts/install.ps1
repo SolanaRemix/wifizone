@@ -173,9 +173,14 @@ if ($mysqlCmd) {
                 'FullControl', 'Allow')
             $acl.SetAccessRule($rule)
             Set-Acl $tmpCnf $acl
-        } catch { <# ACL hardening is best-effort; continue if it fails #> }
+        } catch {
+            Write-Warn "Could not restrict permissions on the temp credentials file ($tmpCnf). Proceeding anyway, but the file may be readable by other local users."
+        }
 
-        $dbPlain = $null  # clear plaintext from memory as soon as possible
+        # Clear the plaintext password from PowerShell memory (best-effort).
+        # PowerShell strings are immutable so we can't zero-fill the buffer, but
+        # removing the variable removes the GC root and allows earlier collection.
+        Clear-Variable -Name dbPlain -ErrorAction SilentlyContinue
 
         try {
             Get-Content -Raw $DB_SCHEMA | mysql "--defaults-extra-file=$tmpCnf"
