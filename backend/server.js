@@ -644,6 +644,9 @@ app.post('/api/session/:id/activate', requireOperatorAuth, apiLimiter, async (re
   if (!txn_id || typeof txn_id !== 'string' || !txn_id.trim()) {
     return res.status(400).json({ error: 'txn_id (transaction reference) is required' });
   }
+  if (txn_id.trim().length > 100) {
+    return res.status(400).json({ error: 'txn_id must be 100 characters or fewer' });
+  }
   try {
     const [[session]] = await db.query('SELECT * FROM sessions WHERE id = ?', [sessionId]);
     if (!session) return res.status(404).json({ error: 'Session not found' });
@@ -671,12 +674,12 @@ app.post('/api/session/:id/activate', requireOperatorAuth, apiLimiter, async (re
       if (USER_FACING_ERRORS.has(msg) || msg.startsWith('Underpayment:')) {
         return res.status(409).json({ error: msg });
       }
-      console.error('[activate] unexpected error:', err);
+      console.error('[activate] unexpected error:', err.message);
       return res.status(500).json({ error: 'Internal error during activation. Check server logs.' });
     }
     res.json(result);
   } catch (err) {
-    console.error('[activate] db error:', err);
+    console.error('[activate] db error:', err.message);
     res.status(500).json({ error: 'Database error. Check server logs.' });
   }
 });

@@ -296,7 +296,6 @@ After the script runs, your router will have:
 | Plan Name | "1 Hour Unlimited" |
 | Duration | 60 minutes |
 | Price | ₱10 |
-| Speed Profile | Regular (5 Mbps) or VIP (20 Mbps) |
 
 5. Click **Save** — your plan is now available to customers!
 

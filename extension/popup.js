@@ -119,7 +119,9 @@ async function loadData() {
         pendingCount.className     = 'value';
       }
     } else {
-      pendingCount.textContent = '—';
+      pendingCount.textContent   = '—';
+      pendingBadge.style.display = 'none';
+      pendingCount.className     = 'value';
     }
 
     // ── Live hotspot users ─────────────────────────────────────────────────
