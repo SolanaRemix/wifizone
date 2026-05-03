@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WIFIZONE Manager</title>
+  <style>
+    :root {
+      --bg:      #0a0a1a;
+      --surface: #12122a;
+      --border:  #1e1e4a;
+      --cyan:    #00fff5;
+      --green:   #00ff88;
+      --yellow:  #ffe600;
+      --red:     #ff2d55;
+      --text:    #e0e0ff;
+      --muted:   #6060a0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Courier New', Courier, monospace;
+      width: 320px;
+      min-height: 200px;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 {
+      font-size: 0.95rem;
+      letter-spacing: 3px;
+      color: var(--cyan);
+      text-shadow: 0 0 10px var(--cyan);
+    }
+
+    #status-dot {
+      font-size: 0.65rem;
+      letter-spacing: 1px;
+      color: var(--muted);
+    }
+    #status-dot.online  { color: var(--green); }
+    #status-dot.offline { color: var(--red);   }
+
+    .section {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section:last-child { border-bottom: none; }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 0.82rem;
+    }
+    .row:last-child { margin-bottom: 0; }
+
+    .label { color: var(--muted); font-size: 0.72rem; letter-spacing: 1px; }
+    .value { color: var(--cyan); font-weight: bold; }
+    .value.green  { color: var(--green); }
+    .value.yellow { color: var(--yellow); }
+    .value.red    { color: var(--red); }
+
+    .revenue {
+      font-size: 1.6rem;
+      color: var(--green);
+      text-shadow: 0 0 10px var(--green);
+      text-align: center;
+      padding: 10px 0;
+      letter-spacing: 2px;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      padding: 12px 16px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 8px 0;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 0.72rem;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+      text-transform: uppercase;
+    }
+    .btn:hover { border-color: var(--cyan); color: var(--cyan); }
+    .btn.primary { border-color: var(--cyan); color: var(--cyan); }
+
+    .server-input {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+    }
+    .server-input input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.72rem;
+      padding: 4px 8px;
+      outline: none;
+    }
+    .server-input input:focus { border-color: var(--cyan); }
+    .server-input button {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 0.65rem;
+      padding: 4px 8px;
+      cursor: pointer;
+    }
+    .server-input button:hover { border-color: var(--cyan); color: var(--cyan); }
+
+    #error-msg {
+      padding: 8px 16px;
+      font-size: 0.72rem;
+      color: var(--red);
+      display: none;
+    }
+
+    #pending-badge {
+      display: inline-block;
+      background: var(--yellow);
+      color: #000;
+      font-size: 0.6rem;
+      font-weight: bold;
+      border-radius: 10px;
+      padding: 1px 6px;
+      margin-left: 4px;
+      letter-spacing: 0;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ WIFIZONE</h1>
+  <span id="status-dot">● CONNECTING</span>
+</header>
+
+<div id="error-msg"></div>
+
+<div class="section">
+  <div class="revenue" id="revenue">₱0.00</div>
+  <div class="row">
+    <span class="label">Total Clients Served</span>
+    <span class="value" id="total-clients">—</span>
+  </div>
+</div>
+
+<div class="section">
+  <div class="row">
+    <span class="label">🔴 Live Users (MikroTik)</span>
+    <span class="value green" id="live-users">—</span>
+  </div>
+  <div class="row">
+    <span class="label">
+      ⏳ Pending Payments
+      <span id="pending-badge" style="display:none;">!</span>
+    </span>
+    <span class="value yellow" id="pending-count">—</span>
+  </div>
+  <div class="row">
+    <span class="label">📡 Server Status</span>
+    <span class="value" id="server-version">—</span>
+  </div>
+</div>
+
+<div class="btn-row">
+  <button class="btn primary" id="btn-dashboard">🖥 Dashboard</button>
+  <button class="btn" id="btn-portal">📶 Customer Portal</button>
+  <button class="btn" id="btn-refresh">↻</button>
+</div>
+
+<div class="server-input">
+  <input type="text" id="server-url" placeholder="http://192.168.88.1:3000" />
+  <button id="btn-save-url">Save</button>
+</div>
+
+<div class="server-input" style="border-top:none;padding-top:0;">
+  <input type="password" id="operator-token" placeholder="Operator token (optional)" />
+  <button id="btn-save-token">Save</button>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>

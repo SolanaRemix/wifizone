@@ -294,6 +294,21 @@ tbody td {
 .queue-bar-fill.vip     { background: var(--cyan);   box-shadow: var(--glow-sm) var(--cyan);   }
 .queue-bar-fill.regular { background: var(--purple);  box-shadow: var(--glow-sm) var(--purple); }
 
+/* ── Plan form inputs ─────────────────────────────────────────── */
+#plans-card input[type="text"],
+#plans-card input[type="number"] {
+  transition: border-color 0.2s;
+}
+#plans-card input[type="text"]:focus,
+#plans-card input[type="number"]:focus {
+  border-color: var(--cyan);
+  outline: none;
+}
+
+/* ── WAN status items ─────────────────────────────────────────── */
+#wan-list > div { transition: background 0.2s; }
+#wan-list > div:hover { background: rgba(0, 255, 245, 0.03); }
+
 /* ── Scrollbar ────────────────────────────────────────────────── */
 ::-webkit-scrollbar              { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track        { background: var(--bg); }
