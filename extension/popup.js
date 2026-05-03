@@ -91,12 +91,16 @@ async function loadData() {
       serverVer.className   = 'value green';
     } else {
       const statusCode = statsRes.status === 'fulfilled' ? statsRes.value.status : null;
-      setStatus('offline');
-      serverVer.textContent = '● OFFLINE';
-      serverVer.className   = 'value red';
       if (statusCode === 401) {
+        // Server is reachable but credentials are missing/wrong — show as online but unauthorized
+        setStatus('online');
+        serverVer.textContent = '● UNAUTHORIZED';
+        serverVer.className   = 'value yellow';
         showError('Auth required. Enter your Operator Token below and save.');
       } else {
+        setStatus('offline');
+        serverVer.textContent = '● OFFLINE';
+        serverVer.className   = 'value red';
         showError('Cannot reach WIFIZONE server. Is it running?');
       }
     }
@@ -158,12 +162,16 @@ refreshBtn.addEventListener('click', loadData);
 
 saveUrlBtn.addEventListener('click', async () => {
   const url = serverInput.value.trim().replace(/\/$/, '');
-  if (!url.startsWith('http')) {
+  if (!/^https?:\/\/[^\s]+$/.test(url)) {
     showError('URL must start with http:// or https://');
     return;
   }
-  await new Promise(resolve => chrome.storage.local.set({ serverUrl: url }, resolve));
-  loadData();
+  // Request optional host permission for this specific origin so fetches succeed
+  const origin = url.replace(/^(https?:\/\/[^/]+).*$/, '$1') + '/*';
+  chrome.permissions.request({ origins: [origin] }, () => {
+    // Proceed regardless — operator may decline and still want to save the URL
+    chrome.storage.local.set({ serverUrl: url }, loadData);
+  });
 });
 
 saveTokenBtn.addEventListener('click', async () => {

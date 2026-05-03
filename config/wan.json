@@ -8,8 +8,8 @@
       "priority": 1
     },
     {
-      "name": "Globe LTE 2",
-      "interface": "ether2",
+      "name": "Globe LTE 2 (example)",
+      "interface": "ether5",
       "type": "lte",
       "provider": "Globe",
       "priority": 2

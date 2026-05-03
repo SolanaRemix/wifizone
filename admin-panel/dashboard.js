@@ -302,7 +302,7 @@
           row.plan_name,
           '₱' + parseFloat(row.price_pesos).toFixed(2),
           row.reference_txn,
-          new Date(row.start_time).toLocaleString(),
+          new Date(row.session_created_at).toLocaleString(),
         ];
         cells.forEach(text => {
           const td = document.createElement('td');

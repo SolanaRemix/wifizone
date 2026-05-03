@@ -4,7 +4,7 @@
 
 WIFIZONE is a simple, powerful hotspot management system built for Filipino entrepreneurs who want to sell WiFi access using a MikroTik router. Whether you're running a small sari-sari store, a boarding house, a waiting shed, or a neighborhood hotspot — WIFIZONE makes it easy to manage customers, sell time-based vouchers, and grow your business.
 
-✅ Works on **any Windows PC or laptop**
+✅ Works on **Windows 10 or Windows 11**
 ✅ One-Click Installer — no technical skills needed
 ✅ Supports **GCash and Card payments**
 ✅ Connects to your **Globe modem, Starlink, or any internet source**
@@ -38,7 +38,7 @@ After payment, customers enter their reference number and their internet turns o
 
 | Feature | What it does for your business |
 |---|---|
-| 🕐 Time-based vouchers | Sell 1-hour, 3-hour, 1-day, or any duration you want |
+| 🕐 Time-based vouchers | Sell 1-hour, 4-hour, 1-day, or any duration you want |
 | 💳 GCash & Card payments | Customers pay online — no coins, no bills |
 | 📊 Live earnings dashboard | See how much you've earned in real time |
 | 👥 Customer management | Monitor who's connected and for how long |
@@ -62,7 +62,7 @@ After payment, customers enter their reference number and their internet turns o
 | **Auto-disconnect** | ✅ Fully automatic | ⚠️ Manual management |
 | **Multiple modems** | ✅ Globe, Starlink, PLDT | ⚠️ Single connection |
 | **Speed profiles** | ✅ VIP / Regular tiers | ⚠️ Limited |
-| **Windows compatibility** | ✅ All Windows versions | ⚠️ Depends on setup |
+| **Windows compatibility** | ✅ Windows 10 and Windows 11 | ⚠️ Depends on setup |
 | **Target users** | ✅ Regular Filipinos, no coding needed | ❌ IT-savvy users |
 
 > 💡 **Bottom line:** WIFIZONE is designed from the ground up for Filipino WiFi resellers who want something that just works — no headaches, no complicated commands.
@@ -231,7 +231,7 @@ When asked for a password, type the MySQL password you set in Step 1.
 When WIFIZONE opens in your browser for the first time:
 
 1. **Go to your dashboard:** http://localhost:3000/dashboard.html
-2. **Set your voucher plans** — add your pricing (e.g., ₱10 = 1 hour, ₱25 = 3 hours)
+2. **Set your voucher plans** — add your pricing (e.g., ₱10 = 1 hour, ₱25 = 4 hours)
 3. **Enter your router password** in the settings
 4. **Test the connection** — click "Test Router" to make sure WIFIZONE can talk to your MikroTik
 
@@ -346,8 +346,13 @@ Running multiple Globe LTE modems gives your customers more stable internet. Her
 
 ### Step 1: Connect the Modems to Your Router
 
-1. Connect **Modem 1** to your MikroTik's `ether1` port
-2. Connect **Modem 2** to `ether2` (or use a USB hub for multiple LTE USB dongles)
+> ⚠️ **Important — check your router's port roles first!**  
+> By default, WIFIZONE's `router-config.rsc` sets up `ether1` as WAN and bridges `ether2` into the LAN.  
+> If you want to use `ether2` as a second WAN port for a second modem, you must **remove `ether2` from the LAN bridge** in WinBox (Interfaces → Bridge → Ports tab) **and** update `config/wan.json` to use your new WAN interface name.  
+> On a 5-port MikroTik (e.g. hEX), consider using `ether5` for the second WAN modem if `ether2`–`ether4` serve your LAN devices.
+
+1. Connect **Modem 1** to your MikroTik's `ether1` port (already configured as WAN)
+2. Connect **Modem 2** to the port you removed from the LAN bridge (e.g., `ether5`)
 3. For more modems, use a **managed switch** connected to your router
 
 ### Step 2: Configure Load Balancing in WinBox

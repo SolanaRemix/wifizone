@@ -609,7 +609,7 @@ app.delete('/api/plans/:id', requireOperatorAuth, apiLimiter, async (req, res) =
 app.get('/api/sessions/pending', requireOperatorAuth, apiLimiter, async (_req, res) => {
   try {
     const [rows] = await db.query(
-      `SELECT s.id, s.start_time, s.reference_txn, u.mac_address, p.name AS plan_name, p.price_pesos
+      `SELECT s.id, s.start_time AS session_created_at, s.reference_txn, u.mac_address, p.name AS plan_name, p.price_pesos
        FROM sessions s
        JOIN users u ON u.id = s.user_id
        JOIN plans p ON p.id = s.plan_id
@@ -644,10 +644,24 @@ app.post('/api/session/:id/activate', requireOperatorAuth, apiLimiter, async (re
     const [[plan]] = await db.query('SELECT * FROM plans WHERE id = ?', [session.plan_id]);
     if (!plan) return res.status(500).json({ error: 'Plan not found' });
 
-    const result = await confirmPayment(sessionId, txn_id.trim(), parseFloat(plan.price_pesos), 'manual');
+    let result;
+    try {
+      result = await confirmPayment(sessionId, txn_id.trim(), parseFloat(plan.price_pesos), 'manual');
+    } catch (err) {
+      // confirmPayment throws user-facing errors (e.g. duplicate txn) as plain Error;
+      // distinguish expected flow errors from unexpected DB/internal failures.
+      const msg = err.message || '';
+      const isFlowError = /duplicate|already|conflict|not found/i.test(msg);
+      if (isFlowError) {
+        return res.status(409).json({ error: msg });
+      }
+      console.error('[activate] unexpected error:', err);
+      return res.status(500).json({ error: 'Internal error during activation. Check server logs.' });
+    }
     res.json(result);
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error('[activate] db error:', err);
+    res.status(500).json({ error: 'Database error. Check server logs.' });
   }
 });
 

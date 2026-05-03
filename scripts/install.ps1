@@ -67,6 +67,18 @@ if ($nodeCmd) {
             Read-Host "Press Enter to exit"
             exit 1
         }
+
+        # Verify node and npm are now available (PATH may not update immediately)
+        $nodeNow = Get-Command node -ErrorAction SilentlyContinue
+        $npmNow  = Get-Command npm  -ErrorAction SilentlyContinue
+        if (-not $nodeNow -or -not $npmNow) {
+            Write-Fail "Node.js was installed but 'node'/'npm' are not yet on PATH."
+            Write-Host ""
+            Write-Host "  Please close this window and open a NEW PowerShell window," -ForegroundColor Yellow
+            Write-Host "  then run this installer again." -ForegroundColor Yellow
+            Read-Host "Press Enter to exit"
+            exit 1
+        }
     } else {
         Write-Fail "Node.js not found and automatic install is not available."
         Write-Host ""
